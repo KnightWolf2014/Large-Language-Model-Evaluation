@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        .message {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .rating {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .positive {
+            color: green;
+        }
+        .negative {
+            color: red;
+        }
+        .comment {
+            font-style: italic;
+            color: #555;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <div>
+        {% for message in messages %}
+            <div class="message">
+                <h2>Role: {{ message.role }}</h2>
+                <p>{{ message.content | safe }}</p>
+                <p>Timestamp: {{ message.timestamp }}</p>
+                {% if message.rating %}
+                    <div class="rating">
+                        {% if message.rating == 1 %}
+                            <span class="positive">👍 Positive</span>
+                        {% elif message.rating == -1 %}
+                            <span class="negative">👎 Negative</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if message.comment %}
+                    <div class="comment">Comment: {{ message.comment }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    <p>Chat Timestamp: {{ timestamp }}</p>
+    <a href="{{ url_for('index') }}">Back to index</a>
+</body>
+</html>

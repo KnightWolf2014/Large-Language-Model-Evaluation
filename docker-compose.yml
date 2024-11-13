@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  llmevaluation-web:
+    build: .
+    ports:
+      - "4444:5000"  # Puerto para acceder a llmevaluation-web
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_PATH=/app/backend/data/webui.db
+    volumes:
+      - shared-data:/app/backend/data  # Volumen compartido para la base de datos
+    restart: always
+    command: bash -c "flask run --host=0.0.0.0"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"  # Puerto para acceder a open-webui
+    volumes:
+      - shared-data:/app/backend/data  # Monta el volumen compartido para la base de datos
+    restart: always
+
+# Definición del volumen compartido
+volumes:
+  shared-data:
