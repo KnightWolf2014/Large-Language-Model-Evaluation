@@ -39,3 +39,14 @@ werkzeug - INFO - 127.0.0.1 - - [01/May/2024 12:40:39] "[33mGET /favicon.ico HT
 root - INFO - Database connection successfully established
 root - INFO - Database connection successfully established
 werkzeug - INFO - 127.0.0.1 - - [01/May/2024 12:41:14] "GET /?start_date=2024-03-01&end_date=2024-05-01&start_time=00:00&end_time=00:00&model_name=ia_y_educacion HTTP/1.1" 200 -
+werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.133:5000
+werkzeug - INFO - [33mPress CTRL+C to quit[0m
+werkzeug - INFO -  * Restarting with stat
+werkzeug - WARNING -  * Debugger is active!
+werkzeug - INFO -  * Debugger PIN: 105-312-339
+werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+werkzeug - INFO - [33mPress CTRL+C to quit[0m
