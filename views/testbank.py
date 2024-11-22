@@ -103,7 +103,7 @@ def list_positives():
         for positive in positives:
             print(f"ID: {positive['id']}, Título: {positive['title']}")
 
-        return render_template('positives.html', responses=positives)
+        return render_template('databank.html', responses=positives)
 
     except sqlite3.Error as e:
         return jsonify({'error': f"Error al obtener datos: {str(e)}"}), 500
