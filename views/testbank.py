@@ -3,18 +3,16 @@ from flask import Blueprint, jsonify, render_template
 import sqlite3
 from config.database import get_openwebui_db_connection, get_project_db_connection
 
-# Crear el Blueprint para el banco de pruebas
 testbank_blueprint = Blueprint('testbank', __name__)
 
 # Función para sincronizar respuestas positivas desde OpenWebUI al banco de pruebas
 @testbank_blueprint.route('/testbank/sync', methods=['POST'])
 def sync_positives():
     try:
-        # Conexión a ambas bases de datos
         openwebui_conn = get_openwebui_db_connection()
         project_conn = get_project_db_connection()
 
-        # Consulta para extraer mensajes con rating positivo y sus prompts
+        # Consulta para extraer los datos que queremos en el banco de pruebas
         query = '''
             SELECT 
                 json_extract(message.value, '$.id') AS response_id,
@@ -30,9 +28,8 @@ def sync_positives():
             FROM chat, json_each(chat.chat, '$.history.messages') AS message
             WHERE json_extract(message.value, '$.annotation.rating') = 1
         '''
-        positives = openwebui_conn.execute(query).fetchall()
 
-        # Log de la cantidad de mensajes positivos obtenidos
+        positives = openwebui_conn.execute(query).fetchall()
         print(f"Respuestas positivas encontradas: {len(positives)}")
 
         # Insertarlas en la base de datos del proyecto
@@ -44,11 +41,10 @@ def sync_positives():
             try:
                 response_id = row[0]
                 title = row[1]
-                prompt = row[3]  # Asegurarse de tomar el campo prompt
+                prompt = row[3]
                 response = row[2]
                 comment = row[4]
 
-                # Log para depuración
                 print(f"\n--- Sincronizando entrada ---")
                 print(f"ID: {response_id}")
                 print(f"Título: {title}")
@@ -59,16 +55,15 @@ def sync_positives():
                 # Insertar en la tabla
                 project_conn.execute(insert_query, (response_id, title, prompt, response, comment))
                 print(f"Insertada respuesta positiva con ID: {response_id}")
+
             except sqlite3.Error as e:
                 print(f"Error al insertar la respuesta positiva con ID {response_id}: {str(e)}")
 
-        # Confirmar cambios
         project_conn.commit()
         print("Cambios confirmados en la base de datos del proyecto.")
 
         sys.stdout.flush()
 
-        # Cerrar conexiones
         openwebui_conn.close()
         project_conn.close()
 
@@ -102,12 +97,10 @@ def list_positives():
             for row in results
         ]
 
-        # Log de depuración
         print(f"Listado de respuestas positivas: {len(positives)} entradas encontradas.")
         for positive in positives:
             print(f"ID: {positive['id']}, Título: {positive['title']}")
 
-        # Renderizar la lista con un HTML o devolver JSON
         return render_template('positives.html', responses=positives)
 
     except sqlite3.Error as e:
