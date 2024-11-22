@@ -1,7 +1,7 @@
 import sqlite3
 from flask import Blueprint, render_template, request, redirect, url_for
 from datetime import datetime
-from config.database import get_db_connection
+from config.database import get_openwebui_db_connection
 import logging
 import json
 
@@ -9,7 +9,7 @@ index_blueprint = Blueprint('index', __name__)
 
 def get_unique_models():
     try:
-        conn = get_db_connection()
+        conn = get_openwebui_db_connection()
         query = "SELECT DISTINCT json_each.value as model FROM chat, json_each(chat, '$.models')"
         models = conn.execute(query).fetchall()
         conn.close()
@@ -48,7 +48,7 @@ def index():
         query += " WHERE " + " AND ".join(where_clauses)
 
     try:
-        conn = get_db_connection()
+        conn = get_openwebui_db_connection()
         chats = conn.execute(query, parameters).fetchall()
         conn.close()
     except sqlite3.Error as e:

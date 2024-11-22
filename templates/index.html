@@ -50,8 +50,11 @@
     </form>
     
     
+    <button onclick="syncAndViewPositives()">View Positive Responses</button>
+
     
     <h1>Chat Records</h1>
+
     <div class="scrollable-table">
         <table>
             <thead>
@@ -82,6 +85,37 @@
                     document.getElementById('chat-display').innerHTML = html;
                 })
                 .catch(error => console.error('Error loading the chat:', error));
+        }
+        
+        function syncTestBank() {
+        fetch('/testbank/sync', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || 'Test Bank Sync Completed!');
+            })
+            .catch(error => console.error('Error syncing the test bank:', error));
+        }
+
+        function syncAndViewPositives() {
+            // Hacer una solicitud AJAX a la ruta de sincronización
+            fetch('/testbank/sync', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Verificar si la sincronización fue exitosa
+                if (data.message === 'Respuestas positivas sincronizadas exitosamente.') {
+                    // Si la sincronización fue exitosa, redirigir a la página de respuestas positivas
+                    window.location.href = "{{ url_for('testbank.list_positives') }}";
+                } else {
+                    // Si hubo un error, mostrar un mensaje de error
+                    alert('Error al sincronizar las respuestas positivas');
+                }
+            })
+            .catch(error => {
+                console.error('Error al sincronizar:', error);
+                alert('Hubo un problema al sincronizar las respuestas positivas');
+            });
         }
     </script>
 </body>

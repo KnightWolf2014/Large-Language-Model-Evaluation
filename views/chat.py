@@ -1,6 +1,6 @@
 import sqlite3
 from flask import Blueprint, render_template, redirect, url_for
-from config.database import get_db_connection
+from config.database import get_openwebui_db_connection
 import markdown
 import logging
 
@@ -9,7 +9,7 @@ chat_blueprint = Blueprint('chat', __name__)
 @chat_blueprint.route('/chat/<id>')
 def chat(id):
     try:
-        conn = get_db_connection()
+        conn = get_openwebui_db_connection()
         chat_record = conn.execute('SELECT * FROM chat WHERE id = ?', (id,)).fetchone()
         messages_query = '''
             SELECT

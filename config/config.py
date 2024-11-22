@@ -17,7 +17,8 @@ auth = HTTPBasicAuth()
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'llmentor')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'llmprimer')
 
-DATABASE_PATH = os.getenv('DATABASE_PATH', '/app/backend/data/webui.db')
+DATABASE_OPENWEBUI_PATH = os.getenv('DATABASE_OPENWEBUI_PATH', '/app/backend/data/webui.db')
+DATABASE_PROJECT_PATH = os.getenv('DATABASE_PROJECT_PATH', '/app/data/webui.db')
 
 # Usuarios para autenticación
 USERS = {ADMIN_USERNAME: ADMIN_PASSWORD}

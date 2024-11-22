@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Positive Responses</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: Arial, sans-serif;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        td {
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Positive Responses</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Prompt</th>
+                <th>Response</th>
+                <th>Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for response in responses %}
+            <tr>
+                <td>{{ response.title }}</td>
+                <td>{{ response.prompt }}</td>
+                <td>{{ response.response }}</td>
+                <td>{{ response.comment if response.comment else '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('index.index') }}">Back to Index</a>
+</body>
+</html>
