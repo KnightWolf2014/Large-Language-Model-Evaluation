@@ -1,5 +1,5 @@
 import sys
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, json, jsonify, render_template, Response
 import sqlite3
 from config.database import get_openwebui_db_connection, get_project_db_connection
 
@@ -78,6 +78,8 @@ def sync_positives():
 def list_positives():
     try:
         conn = get_project_db_connection()
+
+        # Consulta para poder ver los datos de la BBDD en la banco de pruebas
         query = """
         SELECT id, title, prompt, response, comment
         FROM positive_responses
@@ -102,6 +104,46 @@ def list_positives():
             print(f"ID: {positive['id']}, Título: {positive['title']}")
 
         return render_template('positives.html', responses=positives)
+
+    except sqlite3.Error as e:
+        return jsonify({'error': f"Error al obtener datos: {str(e)}"}), 500
+
+
+# Ruta para descargar las respuestas del banco en formato JSON
+@testbank_blueprint.route('/testbank/download', methods=['GET'])
+def download_positives_json():
+    try:
+        conn = get_project_db_connection()
+
+        # Consulta para extraer los campos que queremos para formatear el JSON
+        query = """
+        SELECT prompt, response, comment
+        FROM positive_responses
+        """
+        results = conn.execute(query).fetchall()
+        conn.close()
+
+        # Crear el JSON
+        positives = [
+            {
+                "prompt": row[0],
+                "response": {
+                    "model_response": row[1],
+                    "comment": row[2] if row[2] else ""
+                }
+            }
+            for row in results
+        ]
+
+        print(f"Generando archivo JSON con {len(positives)} respuestas positivas.")
+
+        # Convertir a JSON y preparar respuesta para descarga
+        response = Response(
+            response=json.dumps(positives, indent=4, ensure_ascii=False),
+            mimetype='application/json'
+        )
+        response.headers['Content-Disposition'] = 'attachment; filename=DataBank.json'
+        return response
 
     except sqlite3.Error as e:
         return jsonify({'error': f"Error al obtener datos: {str(e)}"}), 500
