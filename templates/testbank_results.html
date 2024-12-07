@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Bank</title>
+    <title>Test Bank Results</title>
     <style>
         table {
             width: 100%;
@@ -16,6 +16,7 @@
             padding: 10px;
             border: 1px solid #ccc;
             text-align: left;
+            vertical-align: top;
         }
 
         th {
@@ -24,30 +25,31 @@
 
         td {
             word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        h1 {
+            font-family: Arial, sans-serif;
         }
     </style>
 </head>
 <body>
-    <h1>Data Bank</h1>
+    <h1>Test Bank Results</h1>
 
-    <button onclick="window.location.href='/testbank/download'">Download Data Bank</button>
+    <button onclick="window.location.href='/testbank/download'">Evaluate Results</button>
 
     <table>
         <thead>
             <tr>
-                <th>Title</th>
                 <th>Prompt</th>
                 <th>Response</th>
-                <th>Comment</th>
             </tr>
         </thead>
         <tbody>
-            {% for response in responses %}
+            {% for item in results %}
             <tr>
-                <td>{{ response.title }}</td>
-                <td>{{ response.prompt }}</td>
-                <td>{{ response.response }}</td>
-                <td>{{ response.comment if response.comment else '' }}</td>
+                <td>{{ item.prompt }}</td>
+                <td>{{ item.response }}</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banco de Pruebas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Load Model</h1>
+
+    <form id="testbank-config-form" method="post" action="/runTestBank" enctype="multipart/form-data">
+        <label for="server-url">URL del servidor:</label>
+        <input type="text" id="server-url" name="server-url" value="http://host.docker.internal:3000">
+
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" value="joel.corredor@estudiantat.upc.edu">
+
+        <label for="password">Password:</label>
+        <input type="text" id="password" name="password" value="TFGopenWebui2024_">
+
+        <label for="model">Modelo:</label>
+        <select id="model" name="model">
+            <option value="llama3:latest">llama3:latest</option>
+            <option value="model2">Otro modelo</option>
+        </select>
+
+        <label for="testbank-json">Cargar archivo JSON:</label>
+        <input type="file" id="testbank-json" name="testbank-json" accept=".json">
+
+        <button type="submit" id="run-testbank">Ejecutar Banco de Pruebas</button>
+    </form>
+
+    <a href="{{ url_for('index.index') }}">Back to Index</a>
+
+</body>
+</html>

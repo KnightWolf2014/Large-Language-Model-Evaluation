@@ -20,8 +20,8 @@
             margin-top: 20px;
             padding: 10px;
             border: 1px solid #ccc;
-            height: 600px; /* Adjust height as needed */
-            overflow-y: auto; /* Make the chat box scrollable if content is long */
+            height: 600px;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -51,6 +51,9 @@
     
     
     <button onclick="syncAndViewPositives()">View Positive Responses</button>
+
+    <button id="loadModelButton">Load Model</button>
+
 
     
     <h1>Chat Records</h1>
@@ -97,18 +100,14 @@
         }
 
         function syncAndViewPositives() {
-            // Hacer una solicitud AJAX a la ruta de sincronización
             fetch('/testbank/sync', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
-                // Verificar si la sincronización fue exitosa
                 if (data.message === 'Respuestas positivas sincronizadas exitosamente.') {
-                    // Si la sincronización fue exitosa, redirigir a la página de respuestas positivas
                     window.location.href = "{{ url_for('testbank.list_positives') }}";
                 } else {
-                    // Si hubo un error, mostrar un mensaje de error
                     alert('Error al sincronizar las respuestas positivas');
                 }
             })
@@ -117,6 +116,11 @@
                 alert('Hubo un problema al sincronizar las respuestas positivas');
             });
         }
+
+        document.getElementById('loadModelButton').onclick = function() {
+            window.location.href = "{{ url_for('loadModel.load_model') }}";
+        };
+
     </script>
 </body>
 </html>
