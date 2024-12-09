@@ -4,18 +4,34 @@
     <meta charset="UTF-8">
     <title>Chat Records</title>
     <style>
-        .scrollable-table {
-            height: 400px;
-            overflow-y: auto;
+        .filters {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
         }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-row label {
+            min-width: 120px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px;
         }
+
         th, td {
             border: 1px solid black;
             padding: 8px;
         }
+
         #chat-display {
             margin-top: 20px;
             padding: 10px;
@@ -23,62 +39,129 @@
             height: 600px;
             overflow-y: auto;
         }
+
+        .actions {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <form method="get" action="{{ url_for('index.index') }}">
-        <label for="start_date">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" value="{{ request.args.get('start_date') }}" required>
-    
-        <label for="end_date">End Date:</label>
-        <input type="date" id="end_date" name="end_date" value="{{ request.args.get('end_date') }}" required>
-    
-        <label for="start_time">Start Time:</label>
-        <input type="time" id="start_time" name="start_time" value="{{ request.args.get('start_time') }}" required>
-    
-        <label for="end_time">End Time:</label>
-        <input type="time" id="end_time" name="end_time" value="{{ request.args.get('end_time') }}" required>
-        <label for="model_name">Model:</label>
-<select id="model_name" name="model_name">
-    <option value="">Select a Model</option>
-    {% for model in models %}
-    <option value="{{ model }}" {{ 'selected' if model == request.args.get('model_name') else '' }}>{{ model }}</option>
-    {% endfor %}
-</select>
-
-        <button type="submit">Filter</button>
-    </form>
-    
-    
-    <button onclick="syncAndViewPositives()">View Positive Responses</button>
-
-    <button id="loadModelButton">Load Model</button>
-
-
-    
     <h1>Chat Records</h1>
 
-    <div class="scrollable-table">
-        <table>
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Models</th>
-                    <th>Title</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for chat in chats %}
-                <tr>
-                        <td><a href="#" onclick="loadChat('{{ chat.id }}'); return false;">{{ chat.timestamp }}</a></td>
-                        <td>{{ chat.models }}</td>
-                        <td>{{ chat.title }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <form method="get" action="{{ url_for('index.index') }}">
+        <div class="filters">
+            <!-- Fila 1: fechas y horas -->
+            <div class="filter-row">
+                <div>
+                    <label for="start_date">Start Date:</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ request.args.get('start_date') }}">
+                </div>
+                <div>
+                    <label for="end_date">End Date:</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ request.args.get('end_date') }}">
+                </div>
+                <div>
+                    <label for="start_time">Start Time:</label>
+                    <input type="time" id="start_time" name="start_time" value="{{ request.args.get('start_time') }}">
+                </div>
+                <div>
+                    <label for="end_time">End Time:</label>
+                    <input type="time" id="end_time" name="end_time" value="{{ request.args.get('end_time') }}">
+                </div>
+            </div>
+
+            <!-- Fila 2: Modelo, Rating, Comments -->
+            <div class="filter-row">
+                <div>
+                    <label for="model_name">Model:</label>
+                    <select id="model_name" name="model_name">
+                        <option value="">All Models</option>
+                        {% for model in models %}
+                        <option value="{{ model }}" {{ 'selected' if model == request.args.get('model_name') else '' }}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="rating_filter">Rating:</label>
+                    <select id="rating_filter" name="rating_filter">
+                        <option value="">All</option>
+                        <option value="positive" {{ 'selected' if request.args.get('rating_filter') == 'positive' else '' }}>With Positive Rating</option>
+                        <option value="negative" {{ 'selected' if request.args.get('rating_filter') == 'negative' else '' }}>With Negative Rating</option>
+                        <option value="none" {{ 'selected' if request.args.get('rating_filter') == 'none' else '' }}>No rating</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="comment_filter">Comments:</label>
+                    <select id="comment_filter" name="comment_filter">
+                        <option value="">All</option>
+                        <option value="with" {{ 'selected' if request.args.get('comment_filter') == 'with' else '' }}>With Comments</option>
+                        <option value="without" {{ 'selected' if request.args.get('comment_filter') == 'without' else '' }}>Without Comments</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Fila 3: per_page y botón Filtrar -->
+            <div class="filter-row">
+                <div>
+                    <label for="per_page">Per Page:</label>
+                    <select id="per_page" name="per_page">
+                        {% for value in valid_per_page_values %}
+                        <option value="{{ value }}" {{ 'selected' if per_page == value else '' }}>{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <button type="submit">Filter</button>
+                    <a href="{{ url_for('index.index') }}">Clear Filters</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Model</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for chat in chats %}
+            <tr>
+                <td><a href="#" onclick="loadChat('{{ chat.id }}'); return false;">{{ chat.title }}</a></td>
+                <td>{{ chat.models }}</td>
+                <td>{{ chat.timestamp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination-controls">
+        {% if page > 1 %}
+        <a href="{{ url_for('index.index', **prev_args) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="{{ url_for('index.index', **next_args) }}">Next</a>
+        {% endif %}
     </div>
-    <div id="chat-display">Click on a chat ID to view the conversation here.</div>
+
+    <div class="actions">
+        <button onclick="syncAndViewPositives()">View Positive Responses</button>
+        <button id="loadModelButton">Load Model</button>
+    </div>
+
+    <div id="chat-display">Click on a chat Title to view the conversation here.</div>
 
     <script>
         function loadChat(chatId) {
@@ -89,14 +172,14 @@
                 })
                 .catch(error => console.error('Error loading the chat:', error));
         }
-        
+
         function syncTestBank() {
-        fetch('/testbank/sync', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message || 'Test Bank Sync Completed!');
-            })
-            .catch(error => console.error('Error syncing the test bank:', error));
+            fetch('/testbank/sync', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message || 'Test Bank Sync Completed!');
+                })
+                .catch(error => console.error('Error syncing the test bank:', error));
         }
 
         function syncAndViewPositives() {
@@ -120,7 +203,6 @@
         document.getElementById('loadModelButton').onclick = function() {
             window.location.href = "{{ url_for('loadModel.load_model') }}";
         };
-
     </script>
 </body>
 </html>
