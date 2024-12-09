@@ -4,15 +4,19 @@
     <meta charset="UTF-8">
     <title>{{ title }}</title>
     <style>
-        .message {
-            margin-bottom: 20px;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
             padding: 10px;
-            border-bottom: 1px solid #ddd;
+            border: 1px solid #ccc;
         }
-        .rating {
-            font-weight: bold;
-            margin-top: 5px;
+        th {
+            background-color: #f2f2f2;
         }
+
         .positive {
             color: green;
         }
@@ -22,34 +26,48 @@
         .comment {
             font-style: italic;
             color: #555;
-            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <h1>{{ title }}</h1>
-    <div>
-        {% for message in messages %}
-            <div class="message">
-                <h2>Role: {{ message.role }}</h2>
-                <p>{{ message.content | safe }}</p>
-                <p>Timestamp: {{ message.timestamp }}</p>
-                {% if message.rating %}
-                    <div class="rating">
-                        {% if message.rating == 1 %}
+    <form id="chatForm" method="post" action="{{ url_for('testbank.save_selected') }}">
+        <table>
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Prompt</th>
+                    <th>Response</th>
+                    <th>Rating</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pair in pairs %}
+                <tr>
+                    <td>
+                        <input type="checkbox" name="selected" value="{{ loop.index0 }}">
+                        <input type="hidden" name="prompt_{{ loop.index0 }}" value="{{ pair.prompt_raw }}">
+                        <input type="hidden" name="response_{{ loop.index0 }}" value="{{ pair.response_raw }}">
+                        <input type="hidden" name="comment_{{ loop.index0 }}" value="{{ pair.comment if pair.comment else '' }}">
+                    </td>
+                    <td>{{ pair.prompt_display|safe }}</td>
+                    <td>{{ pair.response_display|safe }}</td>
+                    <td>
+                        {% if pair.rating == 1 %}
                             <span class="positive">👍 Positive</span>
-                        {% elif message.rating == -1 %}
+                        {% elif pair.rating == -1 %}
                             <span class="negative">👎 Negative</span>
+                        {% else %}
+                            No rating
                         {% endif %}
-                    </div>
-                {% endif %}
-
-                {% if message.comment %}
-                    <div class="comment">Comment: {{ message.comment }}</div>
-                {% endif %}
-            </div>
-        {% endfor %}
-    </div>
+                    </td>
+                    <td>{{ pair.comment if pair.comment else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
     <p>Chat Timestamp: {{ timestamp }}</p>
     <a href="{{ url_for('index.index') }}">Back to index</a>
 </body>

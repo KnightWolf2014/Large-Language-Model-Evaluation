@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Bank</title>
     <style>
         table {
@@ -16,6 +15,7 @@
             padding: 10px;
             border: 1px solid #ccc;
             text-align: left;
+            vertical-align: top;
         }
 
         th {
@@ -25,34 +25,250 @@
         td {
             word-wrap: break-word;
         }
+
+        .btn {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0 2px;
+            border: 1px solid #ccc;
+            background: #f7f7f7;
+            color: #333;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: #e6e6e6;
+        }
+
+        .message {
+            color: green;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Data Bank</h1>
 
-    <button onclick="window.location.href='/testbank/download'">Download Data Bank</button>
+    <div class="filters">
+        <div>
+            <label for="per_page">Per Page:</label>
+            <select id="per_page" name="per_page" onchange="changePerPage()">
+                {% for value in valid_per_page_values %}
+                <option value="{{ value }}" {{ 'selected' if per_page == value else '' }}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn" onclick="downloadDataset()">Download Data Bank</button>
+    </div>
+
+    <div class="pagination-controls">
+        {% if page > 1 %}
+        <a href="{{ url_for('testbank.list_dataset', **prev_args) }}" class="btn">Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="{{ url_for('testbank.list_dataset', **next_args) }}" class="btn">Next</a>
+        {% endif %}
+    </div>
+
+    <div id="messageBox" class="message"></div>
 
     <table>
         <thead>
             <tr>
-                <th>Title</th>
                 <th>Prompt</th>
                 <th>Response</th>
                 <th>Comment</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for response in responses %}
-            <tr>
-                <td>{{ response.title }}</td>
-                <td>{{ response.prompt }}</td>
-                <td>{{ response.response }}</td>
-                <td>{{ response.comment if response.comment else '' }}</td>
+            <tr data-id="{{ response.id }}">
+                <td class="prompt-cell">{{ response.prompt }}</td>
+                <td class="response-cell">{{ response.response }}</td>
+                <td class="comment-cell">{{ response.comment if response.comment else '' }}</td>
+                <td class="action-cell">
+                    <button class="btn edit-btn" onclick="enableEditMode('{{ response.id }}')">Edit</button>
+                    <button class="btn save-btn" style="display:none;" onclick="saveEntry('{{ response.id }}')">Save</button>
+                    <button class="btn cancel-btn" style="display:none;" onclick="cancelEdit('{{ response.id }}')">Cancel</button>
+                    <button class="btn" onclick="duplicateEntry('{{ response.id }}')">Duplicate</button>
+                    <button class="btn" onclick="deleteEntry('{{ response.id }}')">Delete</button>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
     <a href="{{ url_for('index.index') }}">Back to Index</a>
+
+    <script>
+        function showMessage(msg) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 3000);
+        }
+
+        function downloadDataset() {
+            window.location.href = "/testbank/download_dataset";
+        }
+
+        function enableEditMode(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const promptCell = row.querySelector('.prompt-cell');
+            const responseCell = row.querySelector('.response-cell');
+            const commentCell = row.querySelector('.comment-cell');
+
+            promptCell.setAttribute('data-original', promptCell.textContent);
+            responseCell.setAttribute('data-original', responseCell.textContent);
+            commentCell.setAttribute('data-original', commentCell.textContent);
+
+            promptCell.innerHTML = `<textarea style="width:100%;height:80px;">${promptCell.textContent}</textarea>`;
+            responseCell.innerHTML = `<textarea style="width:100%;height:80px;">${responseCell.textContent}</textarea>`;
+            commentCell.innerHTML = `<textarea style="width:100%;height:80px;">${commentCell.textContent}</textarea>`;
+
+            row.querySelector('.edit-btn').style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'inline-block';
+            row.querySelector('.cancel-btn').style.display = 'inline-block';
+        }
+
+        function saveEntry(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const promptCell = row.querySelector('.prompt-cell textarea');
+            const responseCell = row.querySelector('.response-cell textarea');
+            const commentCell = row.querySelector('.comment-cell textarea');
+
+            const newPrompt = promptCell.value;
+            const newResponse = responseCell.value;
+            const newComment = commentCell.value;
+
+            const formData = new FormData();
+            formData.append('prompt', newPrompt);
+            formData.append('response', newResponse);
+            formData.append('comment', newComment);
+
+            fetch('/testbank/edit/' + id, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message);
+
+                row.querySelector('.prompt-cell').innerHTML = newPrompt;
+                row.querySelector('.response-cell').innerHTML = newResponse;
+                row.querySelector('.comment-cell').innerHTML = newComment;
+
+                row.querySelector('.edit-btn').style.display = 'inline-block';
+                row.querySelector('.save-btn').style.display = 'none';
+                row.querySelector('.cancel-btn').style.display = 'none';
+            })
+            .catch(error => console.error('Error editing entry:', error));
+        }
+
+        function cancelEdit(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const promptCell = row.querySelector('.prompt-cell');
+            const responseCell = row.querySelector('.response-cell');
+            const commentCell = row.querySelector('.comment-cell');
+
+            const originalPrompt = promptCell.getAttribute('data-original');
+            const originalResponse = responseCell.getAttribute('data-original');
+            const originalComment = commentCell.getAttribute('data-original');
+
+            promptCell.innerHTML = originalPrompt;
+            responseCell.innerHTML = originalResponse;
+            commentCell.innerHTML = originalComment;
+
+            row.querySelector('.edit-btn').style.display = 'inline-block';
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.cancel-btn').style.display = 'none';
+        }
+
+        function duplicateEntry(id) {
+            fetch('/testbank/duplicate/' + id, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message);
+                if (data.entry) {
+                    const originalRow = document.querySelector(`tr[data-id="${id}"]`);
+                    if (originalRow) {
+                        const newRow = document.createElement('tr');
+                        newRow.setAttribute('data-id', data.entry.id);
+                        newRow.innerHTML = `
+                            <td class="prompt-cell">${data.entry.prompt}</td>
+                            <td class="response-cell">${data.entry.response}</td>
+                            <td class="comment-cell">${data.entry.comment || ''}</td>
+                            <td class="action-cell">
+                                <button class="btn edit-btn" onclick="enableEditMode('${data.entry.id}')">Edit</button>
+                                <button class="btn save-btn" style="display:none;" onclick="saveEntry('${data.entry.id}')">Save</button>
+                                <button class="btn cancel-btn" style="display:none;" onclick="cancelEdit('${data.entry.id}')">Cancel</button>
+                                <button class="btn" onclick="duplicateEntry('${data.entry.id}')">Duplicate</button>
+                                <button class="btn" onclick="deleteEntry('${data.entry.id}')">Delete</button>
+                            </td>
+                        `;
+                        originalRow.parentNode.insertBefore(newRow, originalRow.nextSibling);
+                    }
+                }
+            })
+            .catch(error => console.error('Error duplicating entry:', error));
+        }
+
+        function deleteEntry(id) {
+            if (!confirm("Are you sure you want to delete this entry?")) return;
+            fetch('/testbank/delete/' + id, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message);
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                if (row) {
+                    row.remove();
+                }
+            })
+            .catch(error => console.error('Error deleting entry:', error));
+        }
+
+        function changePerPage() {
+            const perPageSelect = document.getElementById('per_page');
+            const perPageValue = perPageSelect.value;
+            const url = new URL(window.location.href);
+            url.searchParams.set('per_page', perPageValue);
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString();
+        }
+    </script>
 </body>
 </html>

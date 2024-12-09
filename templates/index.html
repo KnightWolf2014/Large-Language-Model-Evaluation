@@ -52,6 +52,30 @@
             align-items: center;
             margin-bottom: 20px;
         }
+
+        .btn {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0;
+            border: 1px solid #ccc;
+            background: #f7f7f7;
+            color: #333;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: #e6e6e6;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            color: green;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -109,7 +133,7 @@
                 </div>
             </div>
 
-            <!-- Fila 3: per_page y botón Filtrar -->
+            <!-- Fila 3: per_page y botones -->
             <div class="filter-row">
                 <div>
                     <label for="per_page">Per Page:</label>
@@ -120,8 +144,8 @@
                     </select>
                 </div>
                 <div>
-                    <button type="submit">Filter</button>
-                    <a href="{{ url_for('index.index') }}">Clear Filters</a>
+                    <button type="submit" class="btn">Filter</button>
+                    <a href="{{ url_for('index.index') }}" class="btn">Clear Filters</a>
                 </div>
             </div>
         </div>
@@ -148,18 +172,21 @@
 
     <div class="pagination-controls">
         {% if page > 1 %}
-        <a href="{{ url_for('index.index', **prev_args) }}">Previous</a>
+        <a href="{{ url_for('index.index', **prev_args) }}" class="btn">Previous</a>
         {% endif %}
         <span>Page {{ page }} of {{ total_pages }}</span>
         {% if page < total_pages %}
-        <a href="{{ url_for('index.index', **next_args) }}">Next</a>
+        <a href="{{ url_for('index.index', **next_args) }}" class="btn">Next</a>
         {% endif %}
     </div>
 
     <div class="actions">
-        <button onclick="syncAndViewPositives()">View Positive Responses</button>
-        <button id="loadModelButton">Load Model</button>
+        <button class="btn" onclick="saveSelectedSets()">Save Selected Set</button>
+        <button class="btn" onclick="viewDataSet()">View Data Set</button>
+        <button id="loadModelButton" class="btn">Load Model</button>
     </div>
+
+    <div id="messageBox" class="message" style="display:none;"></div>
 
     <div id="chat-display">Click on a chat Title to view the conversation here.</div>
 
@@ -182,22 +209,30 @@
                 .catch(error => console.error('Error syncing the test bank:', error));
         }
 
-        function syncAndViewPositives() {
-            fetch('/testbank/sync', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message === 'Respuestas positivas sincronizadas exitosamente.') {
-                    window.location.href = "{{ url_for('testbank.list_positives') }}";
-                } else {
-                    alert('Error al sincronizar las respuestas positivas');
-                }
-            })
-            .catch(error => {
-                console.error('Error al sincronizar:', error);
-                alert('Hubo un problema al sincronizar las respuestas positivas');
-            });
+        function saveSelectedSets() {
+            const chatForm = document.querySelector('#chat-display #chatForm');
+            if (chatForm) {
+                const formData = new FormData(chatForm);
+                fetch('/testbank/save_selected', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const messageBox = document.getElementById('messageBox');
+                    messageBox.textContent = data.message;
+                    messageBox.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error saving selected sets:', error);
+                });
+            } else {
+                alert("No chat loaded or no form available.");
+            }
+        }
+
+        function viewDataSet() {
+            window.location.href = '/testbank/list_dataset';
         }
 
         document.getElementById('loadModelButton').onclick = function() {
