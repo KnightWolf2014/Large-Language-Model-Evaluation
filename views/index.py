@@ -84,7 +84,7 @@ def index():
     if rating_filter == 'positive':
         rating_condition = "json_extract(m.value, '$.annotation.rating') = 1"
     elif rating_filter == 'negative':
-        rating_condition = "json_extract(m.value, '$.annotation.rating') = 0"
+        rating_condition = "json_extract(m.value, '$.annotation.rating') = -1"
     elif rating_filter == 'none':
         rating_condition = "json_extract(m.value, '$.annotation.rating') IS NULL"
 

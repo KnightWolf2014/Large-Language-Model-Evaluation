@@ -71,10 +71,37 @@
             background: #e6e6e6;
         }
 
-        .message {
-            margin-bottom: 20px;
-            color: green;
+        /* Estilos para el modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 9999; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4); 
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px; 
+        }
+
+        .modal-content h3 {
+            margin-top:0;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
             font-weight: bold;
+            cursor:pointer;
         }
     </style>
 </head>
@@ -181,14 +208,22 @@
     </div>
 
     <div class="actions">
-        <button class="btn" onclick="saveSelectedSets()">Save Selected Set</button>
-        <button class="btn" onclick="viewDataSet()">View Data Set</button>
+        <button class="btn" id="saveSetButton">Save Selected Set</button>
+        <a href="{{ url_for('datasets.list_datasets') }}" class="btn">View Data Sets</a>
         <button id="loadModelButton" class="btn">Load Model</button>
     </div>
 
-    <div id="messageBox" class="message" style="display:none;"></div>
-
     <div id="chat-display">Click on a chat Title to view the conversation here.</div>
+
+    <!-- Modal para seleccionar datasets -->
+    <div id="datasetModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h3>Select Datasets</h3>
+            <div id="datasetList"></div>
+            <button class="btn" id="confirmSaveButton">Save</button>
+        </div>
+    </div>
 
     <script>
         function loadChat(chatId) {
@@ -209,35 +244,80 @@
                 .catch(error => console.error('Error syncing the test bank:', error));
         }
 
-        function saveSelectedSets() {
-            const chatForm = document.querySelector('#chat-display #chatForm');
-            if (chatForm) {
-                const formData = new FormData(chatForm);
-                fetch('/testbank/save_selected', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const messageBox = document.getElementById('messageBox');
-                    messageBox.textContent = data.message;
-                    messageBox.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error saving selected sets:', error);
-                });
-            } else {
-                alert("No chat loaded or no form available.");
-            }
-        }
-
-        function viewDataSet() {
-            window.location.href = '/testbank/list_dataset';
-        }
-
         document.getElementById('loadModelButton').onclick = function() {
             window.location.href = "{{ url_for('loadModel.load_model') }}";
         };
+
+        const saveSetButton = document.getElementById('saveSetButton');
+        const datasetModal = document.getElementById('datasetModal');
+        const closeModal = document.getElementById('closeModal');
+        const confirmSaveButton = document.getElementById('confirmSaveButton');
+
+        saveSetButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            fetch('/datasets', {method:'GET'})
+                .then(r => r.text())
+                .then(html => {
+                    return fetch('/datasets/json', {method:'GET'});
+                })
+                .then(r => r.json())
+                .then(datasets => {
+                    const datasetList = document.getElementById('datasetList');
+                    datasetList.innerHTML = '';
+                    datasets.forEach(ds => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<input type="checkbox" class="datasetCheckbox" value="${ds.id}"> ${ds.title} (${ds.name})`;
+                        datasetList.appendChild(div);
+                    });
+                    datasetModal.style.display = 'block';
+                })
+                .catch(err => console.error(err));
+        });
+
+        closeModal.addEventListener('click', () => {
+            datasetModal.style.display = 'none';
+        });
+
+        window.onclick = function(event) {
+            if (event.target == datasetModal) {
+                datasetModal.style.display = 'none';
+            }
+        }
+
+        confirmSaveButton.addEventListener('click', () => {
+            // Obtener checkboxes seleccionadas
+            const selectedDatasets = [];
+            document.querySelectorAll('.datasetCheckbox:checked').forEach(cb => {
+                selectedDatasets.push(cb.value);
+            });
+
+            if (selectedDatasets.length === 0) {
+                alert("No datasets selected");
+                return;
+            }
+
+            const chatForm = document.querySelector('#chat-display #chatForm');
+            if (!chatForm) {
+                alert("No chat loaded or no form available.");
+                return;
+            }
+
+            // Obtenemos todos los datos del chat form
+            const formData = new FormData(chatForm);
+            // Añadimos los dataset_ids
+            selectedDatasets.forEach(did => formData.append('dataset_ids', did));
+
+            fetch('/testbank/save_selected', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                datasetModal.style.display = 'none';
+            })
+            .catch(err => console.error(err));
+        });
     </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Data Bank</title>
+    <title>{{ dataset.title }} ({{ dataset.name }})</title>
     <style>
         table {
             width: 100%;
@@ -24,6 +24,10 @@
 
         td {
             word-wrap: break-word;
+        }
+
+        .text-cell {
+            white-space: pre-wrap;
         }
 
         .btn {
@@ -67,7 +71,7 @@
     </style>
 </head>
 <body>
-    <h1>Data Bank</h1>
+    <h1>{{ dataset.title }} ({{ dataset.name }})</h1>
 
     <div class="filters">
         <div>
@@ -83,11 +87,11 @@
 
     <div class="pagination-controls">
         {% if page > 1 %}
-        <a href="{{ url_for('testbank.list_dataset', **prev_args) }}" class="btn">Previous</a>
+        <a href="{{ url_for('datasets.list_dataset_responses', dataset_id=dataset_id, **prev_args) }}" class="btn">Previous</a>
         {% endif %}
         <span>Page {{ page }} of {{ total_pages }}</span>
         {% if page < total_pages %}
-        <a href="{{ url_for('testbank.list_dataset', **next_args) }}" class="btn">Next</a>
+        <a href="{{ url_for('datasets.list_dataset_responses', dataset_id=dataset_id, **next_args) }}" class="btn">Next</a>
         {% endif %}
     </div>
 
@@ -105,9 +109,9 @@
         <tbody>
             {% for response in responses %}
             <tr data-id="{{ response.id }}">
-                <td class="prompt-cell">{{ response.prompt }}</td>
-                <td class="response-cell">{{ response.response }}</td>
-                <td class="comment-cell">{{ response.comment if response.comment else '' }}</td>
+                <td class="prompt-cell text-cell">{{ response.prompt }}</td>
+                <td class="response-cell text-cell">{{ response.response }}</td>
+                <td class="comment-cell text-cell">{{ response.comment if response.comment else '' }}</td>
                 <td class="action-cell">
                     <button class="btn edit-btn" onclick="enableEditMode('{{ response.id }}')">Edit</button>
                     <button class="btn save-btn" style="display:none;" onclick="saveEntry('{{ response.id }}')">Save</button>
@@ -121,8 +125,12 @@
     </table>
 
     <a href="{{ url_for('index.index') }}">Back to Index</a>
+    <a href="{{ url_for('datasets.list_datasets')}}">Back to DataSets</a>
 
     <script>
+        const datasetId = "{{ dataset_id }}";
+        const numericDatasetId = parseInt(datasetId, 10);
+
         function showMessage(msg) {
             const box = document.getElementById('messageBox');
             box.textContent = msg;
@@ -133,7 +141,7 @@
         }
 
         function downloadDataset() {
-            window.location.href = "/testbank/download_dataset";
+            window.location.href = `/datasets/${datasetId}/download`;
         }
 
         function enableEditMode(id) {
@@ -174,7 +182,7 @@
             formData.append('response', newResponse);
             formData.append('comment', newComment);
 
-            fetch('/testbank/edit/' + id, {
+            fetch(`/datasets/${datasetId}/responses/${id}/update`, {
                 method: 'POST',
                 body: formData
             })
@@ -215,7 +223,7 @@
         }
 
         function duplicateEntry(id) {
-            fetch('/testbank/duplicate/' + id, {
+            fetch(`/datasets/${datasetId}/responses/${id}/duplicate`, {
                 method: 'POST'
             })
             .then(response => response.json())
@@ -227,9 +235,9 @@
                         const newRow = document.createElement('tr');
                         newRow.setAttribute('data-id', data.entry.id);
                         newRow.innerHTML = `
-                            <td class="prompt-cell">${data.entry.prompt}</td>
-                            <td class="response-cell">${data.entry.response}</td>
-                            <td class="comment-cell">${data.entry.comment || ''}</td>
+                            <td class="text-cell prompt-cell">${data.entry.prompt}</td>
+                            <td class="text-cell response-cell">${data.entry.response}</td>
+                            <td class="text-cell comment-cell">${data.entry.comment || ''}</td>
                             <td class="action-cell">
                                 <button class="btn edit-btn" onclick="enableEditMode('${data.entry.id}')">Edit</button>
                                 <button class="btn save-btn" style="display:none;" onclick="saveEntry('${data.entry.id}')">Save</button>
@@ -245,9 +253,11 @@
             .catch(error => console.error('Error duplicating entry:', error));
         }
 
+
+
         function deleteEntry(id) {
             if (!confirm("Are you sure you want to delete this entry?")) return;
-            fetch('/testbank/delete/' + id, {
+            fetch(`/datasets/${datasetId}/responses/${id}/delete`, {
                 method: 'POST'
             })
             .then(response => response.json())

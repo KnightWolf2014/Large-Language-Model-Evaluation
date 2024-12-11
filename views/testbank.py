@@ -143,20 +143,25 @@ def duplicate_entry(id):
 @testbank_blueprint.route('/testbank/save_selected', methods=['POST'])
 def save_selected():
     selected = request.form.getlist('selected')
-    if not selected:
-        return jsonify({'message': 'No selections made'}), 400
+    dataset_ids = request.form.getlist('dataset_ids')
+    if not selected or not dataset_ids:
+        return jsonify({'message': 'No selections made or no datasets chosen'}), 400
 
     conn = get_project_db_connection()
-    insert_query = "INSERT INTO dataset_responses (prompt, response, comment) VALUES (?, ?, ?)"
+    insert_query = "INSERT INTO dataset_responses (dataset_id, prompt, response, comment) VALUES (?, ?, ?, ?)"
 
     for idx in selected:
         prompt = request.form.get(f'prompt_{idx}', '')
         response = request.form.get(f'response_{idx}', '')
         comment = request.form.get(f'comment_{idx}', '')
-        conn.execute(insert_query, (prompt, response, comment))
+        for d_id in dataset_ids:
+            conn.execute(insert_query, (d_id, prompt, response, comment))
 
     conn.commit()
     conn.close()
 
-    return jsonify({'message': 'Selected responses saved successfully.'}), 200
+    return jsonify({'message': 'Selected responses saved successfully.'})
+
+
+
 

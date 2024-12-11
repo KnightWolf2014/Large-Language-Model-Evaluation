@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Datasets</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0 2px;
+            border: 1px solid #ccc;
+            background: #f7f7f7;
+            color: #333;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: #e6e6e6;
+        }
+
+        .edit-fields {
+            display: none;
+        }
+
+        .message {
+            color: green;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Datasets</h1>
+
+    <h2>Create a new dataset</h2>
+    <form method="post" action="{{ url_for('datasets.create_dataset') }}" onsubmit="return validateDatasetForm()">
+        <label>Title: <input type="text" id="dataset-title" name="title"></label><br>
+        <label>Name: <input type="text" id="dataset-name" name="name"></label><br>
+        <label>Description: <input type="text" name="description"></label><br>
+        <button type="submit" class="btn">Create</button>
+    </form>
+
+    <h2>Existing Datasets</h2>
+    <div id="messageBox" class="message"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ds in datasets %}
+            <tr data-id="{{ ds.id }}">
+                <td class="title-cell">
+                    <a href="{{ url_for('datasets.list_dataset_responses', dataset_id=ds.id) }}">{{ ds.title }}</a>
+                </td>
+                <td class="name-cell">{{ ds.name }}</td>
+                <td class="description-cell">{{ ds.description }}</td>
+                <td>
+                    <button class="btn edit-btn" onclick="enableEditMode('{{ ds.id }}')">Edit</button>
+                    <button class="btn save-btn" style="display:none;" onclick="saveDataset('{{ ds.id }}')">Save</button>
+                    <button class="btn cancel-btn" style="display:none;" onclick="cancelEdit('{{ ds.id }}')">Cancel</button>
+                    <form class="form-inline" method="post" action="{{ url_for('datasets.delete_dataset', dataset_id=ds.id) }}" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                        <button type="submit" class="btn">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('index.index') }}">Back to Index</a>
+
+    <script>
+        function validateDatasetForm() {
+            const title = document.getElementById('dataset-title').value.trim();
+            const name = document.getElementById('dataset-name').value.trim();
+
+            if (!title) {
+                alert("Please enter a title for the dataset.");
+                return false;
+            }
+
+            if (!name) {
+                alert("Please enter a name for the dataset.");
+                return false;
+            }
+
+            return true;
+        }
+
+        function showMessage(msg) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 3000);
+        }
+
+        function enableEditMode(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const titleCell = row.querySelector('.title-cell');
+            const nameCell = row.querySelector('.name-cell');
+            const descriptionCell = row.querySelector('.description-cell');
+
+            // Guardamos valores originales
+            titleCell.setAttribute('data-original', titleCell.textContent.trim());
+            nameCell.setAttribute('data-original', nameCell.textContent.trim());
+            descriptionCell.setAttribute('data-original', descriptionCell.textContent.trim());
+
+            // Convertimos a campos editables
+            const originalTitle = titleCell.textContent.trim();
+            const originalName = nameCell.textContent.trim();
+            const originalDescription = descriptionCell.textContent.trim();
+
+            titleCell.innerHTML = `<input type="text" value="${originalTitle}" style="width:100%">`;
+            nameCell.innerHTML = `<input type="text" value="${originalName}" style="width:100%">`;
+            descriptionCell.innerHTML = `<input type="text" value="${originalDescription}" style="width:100%">`;
+
+            row.querySelector('.edit-btn').style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'inline-block';
+            row.querySelector('.cancel-btn').style.display = 'inline-block';
+        }
+
+        function saveDataset(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const titleInput = row.querySelector('.title-cell input');
+            const nameInput = row.querySelector('.name-cell input');
+            const descriptionInput = row.querySelector('.description-cell input');
+
+            const newTitle = titleInput.value;
+            const newName = nameInput.value;
+            const newDescription = descriptionInput.value;
+
+            const formData = new FormData();
+            formData.append('title', newTitle);
+            formData.append('name', newName);
+            formData.append('description', newDescription);
+
+            fetch(`/datasets/${id}/edit`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if(!response.ok) throw new Error('Error editing dataset');
+                return response.json().catch(() => ({}));
+            })
+            .then(data => {
+                if (data.error) {
+                    showMessage(data.error);
+                } else {
+                    showMessage("Dataset edited successfully.");
+                    row.querySelector('.title-cell').innerHTML = `<a href="/datasets/${id}/responses">${newTitle}</a>`;
+                    row.querySelector('.name-cell').textContent = newName;
+                    row.querySelector('.description-cell').textContent = newDescription;
+
+                    row.querySelector('.edit-btn').style.display = 'inline-block';
+                    row.querySelector('.save-btn').style.display = 'none';
+                    row.querySelector('.cancel-btn').style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function cancelEdit(id) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (!row) return;
+
+            const titleCell = row.querySelector('.title-cell');
+            const nameCell = row.querySelector('.name-cell');
+            const descriptionCell = row.querySelector('.description-cell');
+
+            const originalTitle = titleCell.getAttribute('data-original');
+            const originalName = nameCell.getAttribute('data-original');
+            const originalDescription = descriptionCell.getAttribute('data-original');
+
+            titleCell.innerHTML = `<a href="/datasets/${id}/responses">${originalTitle}</a>`;
+            nameCell.textContent = originalName;
+            descriptionCell.textContent = originalDescription;
+
+            row.querySelector('.edit-btn').style.display = 'inline-block';
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.cancel-btn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

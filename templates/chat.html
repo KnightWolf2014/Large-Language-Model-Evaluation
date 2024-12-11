@@ -16,22 +16,17 @@
         th {
             background-color: #f2f2f2;
         }
-
-        .positive {
-            color: green;
+        .text-cell {
+            white-space: pre-wrap;
         }
-        .negative {
-            color: red;
-        }
-        .comment {
-            font-style: italic;
-            color: #555;
-        }
+        .positive { color: green; }
+        .negative { color: red; }
+        .comment { font-style: italic; color: #555; }
     </style>
 </head>
 <body>
     <h1>{{ title }}</h1>
-    <form id="chatForm" method="post" action="{{ url_for('testbank.save_selected') }}">
+    <form id="chatForm" method="post">
         <table>
             <thead>
                 <tr>
@@ -47,12 +42,12 @@
                 <tr>
                     <td>
                         <input type="checkbox" name="selected" value="{{ loop.index0 }}">
-                        <input type="hidden" name="prompt_{{ loop.index0 }}" value="{{ pair.prompt_raw }}">
-                        <input type="hidden" name="response_{{ loop.index0 }}" value="{{ pair.response_raw }}">
+                        <input type="hidden" name="prompt_{{ loop.index0 }}" value="{{ pair.prompt }}">
+                        <input type="hidden" name="response_{{ loop.index0 }}" value="{{ pair.response }}">
                         <input type="hidden" name="comment_{{ loop.index0 }}" value="{{ pair.comment if pair.comment else '' }}">
                     </td>
-                    <td>{{ pair.prompt_display|safe }}</td>
-                    <td>{{ pair.response_display|safe }}</td>
+                    <td class="text-cell">{{ pair.prompt }}</td>
+                    <td class="text-cell"> {{ pair.response }}</td>
                     <td>
                         {% if pair.rating == 1 %}
                             <span class="positive">👍 Positive</span>
@@ -62,7 +57,7 @@
                             No rating
                         {% endif %}
                     </td>
-                    <td>{{ pair.comment if pair.comment else '' }}</td>
+                    <td class="text-cell">{{ pair.comment if pair.comment else '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

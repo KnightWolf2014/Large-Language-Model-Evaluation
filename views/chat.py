@@ -1,7 +1,6 @@
 import sqlite3
 from flask import Blueprint, render_template, redirect, url_for, request
 from config.database import get_openwebui_db_connection
-import markdown
 import logging
 from datetime import datetime
 
@@ -31,36 +30,30 @@ def chat(id):
         logging.error(f"Error al obtener el registro de chat con id {id}: {e}")
         return redirect(url_for('index.index'))
 
-    # Convertir a diccionarios
     msg_dict = {}
     for m in messages:
         msg_id = m['message_id']
-        raw_content = m['content'] if m['content'] else ''
-        display_content = markdown.markdown(raw_content)
         msg_dict[msg_id] = {
             'id': msg_id,
             'parent_id': m['parent_id'],
             'role': m['role'],
-            'raw_content': raw_content,
-            'display_content': display_content,
+            'content': m['content'] if m['content'] else '',
             'timestamp': m['timestamp'],
             'rating': m['rating'],
             'comment': m['comment']
         }
 
-    # Crear pares prompt/response
     pairs = []
     for m in msg_dict.values():
         if m['role'] == 'user':
             user_msg = m
+            # Buscar el assistant hijo
             for candidate in msg_dict.values():
                 if candidate['parent_id'] == user_msg['id'] and candidate['role'] == 'assistant':
                     pairs.append({
-                        'prompt_raw': user_msg['raw_content'],
-                        'prompt_display': user_msg['display_content'],
+                        'prompt': user_msg['content'],
                         'prompt_timestamp': user_msg['timestamp'],
-                        'response_raw': candidate['raw_content'],
-                        'response_display': candidate['display_content'],
+                        'response': candidate['content'],
                         'response_timestamp': candidate['timestamp'],
                         'rating': candidate['rating'],
                         'comment': candidate['comment']
