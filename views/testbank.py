@@ -148,14 +148,22 @@ def save_selected():
         return jsonify({'message': 'No selections made or no datasets chosen'}), 400
 
     conn = get_project_db_connection()
-    insert_query = "INSERT INTO dataset_responses (dataset_id, prompt, response, comment) VALUES (?, ?, ?, ?)"
+
+    insert_query = "INSERT INTO dataset_responses (dataset_id, prompt, response, comment, rating) VALUES (?, ?, ?, ?, ?)"
 
     for idx in selected:
         prompt = request.form.get(f'prompt_{idx}', '')
         response = request.form.get(f'response_{idx}', '')
         comment = request.form.get(f'comment_{idx}', '')
+        rating_val = request.form.get(f'rating_{idx}', '')
+
+        if rating_val == '' or rating_val is None:
+            rating_val = 0
+        else:
+            rating_val = int(rating_val)
+
         for d_id in dataset_ids:
-            conn.execute(insert_query, (d_id, prompt, response, comment))
+            conn.execute(insert_query, (d_id, prompt, response, comment, rating_val))
 
     conn.commit()
     conn.close()

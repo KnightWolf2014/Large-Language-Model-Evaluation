@@ -12,6 +12,7 @@ def create_dataset_responses_table():
             dataset_id INTEGER NOT NULL,
             prompt TEXT NOT NULL,
             response TEXT NOT NULL,
+            rating INTEGER,
             comment TEXT,
             FOREIGN KEY(dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
         );
