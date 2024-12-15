@@ -36,7 +36,7 @@
 
     <h1>Load Model</h1>
 
-    <form id="testbank-config-form" method="post" action="/runTestBank" enctype="multipart/form-data">
+    <form id="dataset-config-form" method="post" action="/runDataset" enctype="multipart/form-data">
         <label for="server-url">URL del servidor:</label>
         <input type="text" id="server-url" name="server-url" value="http://host.docker.internal:3000">
 
@@ -52,8 +52,8 @@
             <option value="model2">Otro modelo</option>
         </select>
 
-        <label for="testbank-json">Cargar archivo JSON:</label>
-        <input type="file" id="testbank-json" name="testbank-json" accept=".json">
+        <label for="dataset-json">Cargar archivo JSON:</label>
+        <input type="file" id="dataset-json" name="dataset-json" accept=".json">
 
         <button type="submit" id="run-testbank">Ejecutar Banco de Pruebas</button>
     </form>

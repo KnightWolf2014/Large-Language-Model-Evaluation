@@ -160,7 +160,7 @@ def run_test_bank():
             except Exception as e_general:
                 results.append({"prompt": p["prompt"], "response": f"Excepción general: {str(e_general)}"})
 
-        return render_template('testbank_results.html', results=results)
+        return render_template('loadbank_results.html', results=results)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
