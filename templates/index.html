@@ -235,15 +235,6 @@
                 .catch(error => console.error('Error loading the chat:', error));
         }
 
-        function syncTestBank() {
-            fetch('/testbank/sync', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message || 'Test Bank Sync Completed!');
-                })
-                .catch(error => console.error('Error syncing the test bank:', error));
-        }
-
         document.getElementById('loadModelButton').onclick = function() {
             window.location.href = "{{ url_for('loadModel.load_model') }}";
         };
@@ -285,7 +276,6 @@
         }
 
         confirmSaveButton.addEventListener('click', () => {
-            // Obtener checkboxes seleccionadas
             const selectedDatasets = [];
             document.querySelectorAll('.datasetCheckbox:checked').forEach(cb => {
                 selectedDatasets.push(cb.value);
@@ -302,12 +292,10 @@
                 return;
             }
 
-            // Obtenemos todos los datos del chat form
             const formData = new FormData(chatForm);
-            // Añadimos los dataset_ids
             selectedDatasets.forEach(did => formData.append('dataset_ids', did));
 
-            fetch('/testbank/save_selected', {
+            fetch('/dataset/save_selected', {
                 method: 'POST',
                 body: formData
             })

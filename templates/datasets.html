@@ -75,7 +75,7 @@
             {% for ds in datasets %}
             <tr data-id="{{ ds.id }}">
                 <td class="title-cell">
-                    <a href="{{ url_for('datasets.list_dataset_responses', dataset_id=ds.id) }}">{{ ds.title }}</a>
+                    <a href="{{ url_for('dataset.list_dataset_responses', dataset_id=ds.id) }}">{{ ds.title }}</a>
                 </td>
                 <td class="name-cell">{{ ds.name }}</td>
                 <td class="description-cell">{{ ds.description }}</td>

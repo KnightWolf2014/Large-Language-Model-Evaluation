@@ -26,7 +26,8 @@
 </head>
 <body>
     <h1>{{ title }}</h1>
-    <form id="chatForm" method="post">
+    <form id="chatForm" method="post" action="/dataset/save_selected">
+        <input type="hidden" name="pairs_count" value="{{ pairs|length }}">
         <table>
             <thead>
                 <tr>
@@ -44,11 +45,11 @@
                         <input type="checkbox" name="selected" value="{{ loop.index0 }}">
                         <input type="hidden" name="prompt_{{ loop.index0 }}" value="{{ pair.prompt }}">
                         <input type="hidden" name="response_{{ loop.index0 }}" value="{{ pair.response }}">
-                        <input type="hidden" name="rating_{{ loop.index0 }}" value="{{ pair.rating if pair.rating else 0 }}">
+                        <input type="hidden" name="rating_{{ loop.index0 }}" value="{{ pair.rating if pair.rating is not none else 0 }}">
                         <input type="hidden" name="comment_{{ loop.index0 }}" value="{{ pair.comment if pair.comment else '' }}">
                     </td>
                     <td class="text-cell">{{ pair.prompt }}</td>
-                    <td class="text-cell"> {{ pair.response }}</td>
+                    <td class="text-cell">{{ pair.response }}</td>
                     <td>
                         {% if pair.rating == 1 %}
                             <span class="positive">👍 Positive</span>

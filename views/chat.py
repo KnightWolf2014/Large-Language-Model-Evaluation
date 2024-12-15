@@ -6,6 +6,8 @@ from datetime import datetime
 
 chat_blueprint = Blueprint('chat', __name__)
 
+
+# Función para mostrar el chat seleccionado desde el índice
 @chat_blueprint.route('/chat/<id>')
 def chat(id):
     try:
