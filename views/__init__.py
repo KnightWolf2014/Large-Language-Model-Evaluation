@@ -3,3 +3,4 @@ from .chat import chat_blueprint
 from .dataset import dataset_blueprint
 from .loadModel import loadModel_blueprint
 from .datasets import datasets_blueprint
+from .evaluateResults import evaluateResults_blueprint

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Evaluation Results</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: Arial, sans-serif;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        td {
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .pagination-controls {
+            margin-top: 20px;
+        }
+        .pagination-controls a {
+            margin-right: 10px;
+        }
+        .filters {
+            margin-bottom: 20px;
+        }
+        .metrics-container {
+            display: flex; 
+            flex-direction: column;
+        }
+        .metrics-row {
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+        }
+        .metrics-row span {
+            margin: 0; 
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Evaluation Results</h1>
+
+    <p>Total evaluated pairs: {{ total }}</p>
+
+    <h2>Dataset Results</h2>
+
+    <p>Average BLEU: {{ avg_bleu }}</p>
+    <p>Average ROUGE-1: {{ avg_rouge1 }}</p>
+    <p>Average ROUGE-2: {{ avg_rouge2 }}</p>
+    <p>Average ROUGE-L: {{ avg_rougel }}</p>
+    
+    
+    <h2>Per-Prompt Results</h2>
+
+    <div class="filters">
+        <form method="get" action="{{ url_for('evaluateResults.evaluate_results') }}">
+            <label for="per_page">Per Page:</label>
+            <select id="per_page" name="per_page">
+                <option value="5" {{ 'selected' if per_page == 5 else '' }}>5</option>
+                <option value="10" {{ 'selected' if per_page == 10 else '' }}>10</option>
+                <option value="25" {{ 'selected' if per_page == 25 else '' }}>25</option>
+            </select>
+            <input type="hidden" name="page" value="1">
+            <button type="submit">Apply</button>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Prompt</th>
+                <th>Expected Response</th>
+                <th>Generated Response</th>
+                <th>Results</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in results %}
+            <tr>
+                <td>{{ item.prompt }}</td>
+                <td>{{ item.expected_response }}</td>
+                <td>{{ item.generated_response }}</td>
+                <td>BLEU: {{ item.bleu }}
+                    ROUGE-1: {{ item.rouge1 }}
+                    ROUGE-2: {{ item.rouge2 }}
+                    ROUGE-L: {{ item.rougel }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination-controls">
+        {% if prev_page %}
+            <a href="{{ url_for('evaluateResults.evaluate_results', page=prev_page, per_page=per_page) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if next_page %}
+            <a href="{{ url_for('evaluateResults.evaluate_results', page=next_page, per_page=per_page) }}">Next</a>
+        {% endif %}
+    </div>
+
+    <a href="{{ url_for('index.index') }}">Back to Index</a>
+</body>
+</html>
