@@ -1,412 +1,119 @@
 openapi: 3.0.3
 info:
-  title: LLM Evaluation API
+  title: LLMevaluation Configuration & Index Endpoint
   version: "1.0.0"
-  description: API para listar y gestionar chats, datasets y sus respuestas.
+  description: >
+    Configuración y endpoint de inicio.  
+    Agregamos valores por defecto a los parámetros de la petición.
 
 servers:
-  - url: http://localhost:5000
-    description: Servidor local de desarrollo
+  - url: "http://localhost:4444"
+    description: "Servidor local mapeado al contenedor en 0.0.0.0:5000"
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+security:
+  - basicAuth: []
 
 paths:
-  /:
+  "/":
     get:
-      summary: Listar chats filtrados
-      description: Obtiene una lista de chats con posibilidad de filtrar por fechas, modelo, rating y comentarios.
+      summary: "Página principal del sistema"
+      description: >
+        Retorna la plantilla **index.html**, que lista los chats filtrados,
+        modelos disponibles, paginación, etc.
+
+      operationId: getIndex
+      security:
+        - basicAuth: []
+
       parameters:
-        - in: query
-          name: start_date
+        - name: start_date
+          in: query
           schema:
             type: string
             format: date
-          description: Fecha de inicio en formato YYYY-MM-DD
-        - in: query
-          name: end_date
+            default: "2024-10-10"  # Valor por defecto
+            example: "2024-10-10"  # Ejemplo
+          description: Fecha de inicio (yyyy-mm-dd)
+        - name: end_date
+          in: query
           schema:
             type: string
             format: date
-          description: Fecha de fin en formato YYYY-MM-DD
-        - in: query
-          name: start_time
+            default: "2024-10-12"
+            example: "2024-10-12"
+          description: Fecha de fin (yyyy-mm-dd)
+        - name: start_time
+          in: query
           schema:
             type: string
-            pattern: '^\\d{2}:\\d{2}$'
-          description: Hora de inicio HH:MM
-        - in: query
-          name: end_time
+            format: time
+            default: "12:24"
+            example: "12:24"
+          description: Hora de inicio (HH:MM)
+        - name: end_time
+          in: query
           schema:
             type: string
-            pattern: '^\\d{2}:\\d{2}$'
-          description: Hora de fin HH:MM
-        - in: query
-          name: model_name
+            format: time
+            default: "12:24"
+            example: "12:24"
+          description: Hora de fin (HH:MM)
+        - name: model_name
+          in: query
           schema:
             type: string
-          description: Filtrar por nombre de modelo
-        - in: query
-          name: rating_filter
+            default: "llama3:latest"
+            example: "llama3:latest"
+          description: Nombre del modelo a filtrar
+        - name: rating_filter
+          in: query
           schema:
             type: string
             enum: [positive, negative, none]
-          description: Filtrar chats que contengan respuestas con rating positivo, negativo o sin rating.
-        - in: query
-          name: comment_filter
+            default: "none"
+            example: "none"
+          description: Filtra chats con rating 'positive', 'negative' o 'none'
+        - name: comment_filter
+          in: query
           schema:
             type: string
             enum: [with, without]
-          description: Filtrar chats que contengan o no comentarios en las respuestas.
-        - in: query
-          name: page
+            default: "without"
+            example: "without"
+          description: Filtra chats con/sin comentario
+        - name: page
+          in: query
           schema:
             type: integer
             default: 1
-          description: Página de resultados
-        - in: query
-          name: per_page
+            example: 1
+          description: Número de página para la paginación
+        - name: per_page
+          in: query
           schema:
             type: integer
-            enum: [5,10,25]
-            default: 10
-          description: Número de resultados por página
+            enum: [5, 10, 25]
+            default: 5
+            example: 5
+          description: Tamaño de página (5, 10 o 25)
+
       responses:
-        '200':
-          description: Lista de chats
+        "200":
+          description: "Página HTML principal con la lista de chats"
           content:
             text/html:
               schema:
                 type: string
-                description: HTML renderizado de la página con la lista de chats.
-
-  /chat/{id}:
-    get:
-      summary: Ver detalles de un chat
-      description: Muestra el chat con sus pares prompt/response.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: ID del chat
-      responses:
-        '200':
-          description: Página HTML con detalles del chat
-          content:
-            text/html:
-              schema:
-                type: string
-        '302':
-          description: Redirección al index si no se encuentra el chat
-
-  /datasets:
-    get:
-      summary: Listar datasets
-      description: Lista todos los datasets creados.
-      responses:
-        '200':
-          description: Página HTML con la lista de datasets
-          content:
-            text/html:
-              schema:
-                type: string
-
-  /datasets/create:
-    post:
-      summary: Crear un nuevo dataset
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                name:
-                  type: string
-                description:
-                  type: string
-              required: [title, name]
-      responses:
-        '302':
-          description: Redirige a la lista de datasets si se crea exitosamente
-        '400':
-          description: Error en el input (falta título o nombre único)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-
-  /datasets/{dataset_id}/edit:
-    post:
-      summary: Editar un dataset existente
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                name:
-                  type: string
-                description:
-                  type: string
-              required: [title, name]
-      responses:
-        '302':
-          description: Redirige a la lista de datasets tras editar con éxito
-        '400':
-          description: Error en el input o nombre duplicado
-
-  /datasets/{dataset_id}/delete:
-    post:
-      summary: Borrar un dataset
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '302':
-          description: Redirige a la lista de datasets tras el borrado
-
-  /datasets/json:
-    get:
-      summary: Listar datasets en JSON
-      description: Devuelve una lista de datasets en formato JSON.
-      responses:
-        '200':
-          description: Lista de datasets en JSON
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    title:
-                      type: string
-                    name:
-                      type: string
-                    description:
-                      type: string
-
-  /dataset/{dataset_id}/responses:
-    get:
-      summary: Listar respuestas de un dataset
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-        - in: query
-          name: per_page
-          schema:
-            type: integer
-            enum: [5,10,25]
-            default: 10
-      responses:
-        '200':
-          description: Página HTML con las respuestas del dataset
-          content:
-            text/html:
-              schema:
-                type: string
-        '404':
-          description: Dataset no encontrado
-
-  /dataset/{dataset_id}/download:
-    get:
-      summary: Descargar dataset en JSON
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Devuelve el dataset en JSON para descargar
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    prompt:
-                      type: string
-                    response:
-                      type: object
-                      properties:
-                        model_response:
-                          type: string
-                        comment:
-                          type: string
-        '404':
-          description: Dataset no encontrado
-
-  /dataset/{dataset_id}/responses/{response_id}/update:
-    post:
-      summary: Actualizar una respuesta del dataset
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: response_id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                prompt:
-                  type: string
-                response:
-                  type: string
-                comment:
-                  type: string
-                rating:
-                  type: string
-                  description: "Puede ser '1', '-1' o vacio"
-      responses:
-        '200':
-          description: Actualización exitosa
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-
-  /dataset/{dataset_id}/responses/{response_id}/delete:
-    post:
-      summary: Borrar una respuesta del dataset
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: response_id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Borrado exitoso
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-
-  /dataset/{dataset_id}/responses/{response_id}/duplicate:
-    post:
-      summary: Duplicar una respuesta del dataset
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: response_id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Duplicación exitosa
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  entry:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                      prompt:
-                        type: string
-                      response:
-                        type: string
-                      comment:
-                        type: string
-                      rating:
-                        type: integer
-        '404':
-          description: Entrada no encontrada
-
-  /dataset/save_selected:
-    post:
-      summary: Guardar respuestas seleccionadas desde un chat a uno o varios datasets
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              properties:
-                selected:
-                  type: array
-                  items: { type: string }
-                dataset_ids:
-                  type: array
-                  items: { type: string }
-                pairs_count:
-                  type: string
-                # prompt_i, response_i, comment_i, rating_i para cada i
-      responses:
-        '200':
-          description: Respuestas guardadas exitosamente
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        '400':
-          description: No se seleccionaron respuestas o datasets
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
+                example: "<!DOCTYPE html><html> ...</html>"
+        "400":
+          description: "Error de parámetros (fechas/horas mal formateadas)"
+        "401":
+          description: "No se proveyó o fue incorrecta la autenticación Basic"
+        "500":
+          description: "Error interno en el servidor"

@@ -2,27 +2,23 @@ import sys
 import json
 import time
 import uuid
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, session
 import urllib.request
-
 
 loadModel_blueprint = Blueprint('loadModel', __name__)
 
-
-# Función para obtener el token de autenticación
 def get_auth_token(server_url, username, password):
     auth_url = f"{server_url}/api/v1/auths/signin"
     payload = json.dumps({"email": username, "password": password}).encode("utf-8")
     headers = {"Content-Type": "application/json"}
-
     try:
-        request_obj = urllib.request.Request(auth_url, data=payload, headers=headers)
-        with urllib.request.urlopen(request_obj) as response:
-            if response.status == 200:
-                auth_data = json.load(response)
+        req = urllib.request.Request(auth_url, data=payload, headers=headers)
+        with urllib.request.urlopen(req) as resp:
+            if resp.status == 200:
+                auth_data = json.load(resp)
                 return auth_data.get("token")
             else:
-                print(f"Error al autenticar: {response.read().decode('utf-8')}")
+                print(f"Error al autenticar: {resp.read().decode('utf-8')}")
                 return None
     except urllib.error.HTTPError as e:
         print(f"HTTPError en autenticación: {e.read().decode('utf-8')}")
@@ -31,14 +27,10 @@ def get_auth_token(server_url, username, password):
         print(f"URLError en autenticación: {str(e)}")
         return None
 
-
-# Función para mostrar la UI
 @loadModel_blueprint.route('/loadModel', methods=['GET'])
 def load_model():
     return render_template('loadModel.html')
 
-
-# Función para ejecutar el banco de pruebas
 @loadModel_blueprint.route('/runDataset', methods=['POST'])
 def run_dataset():
     try:
@@ -56,10 +48,19 @@ def run_dataset():
             return jsonify({"error": "No se pudo autenticar al servidor"}), 401
 
         prompts_json = json.load(file)
-        prompts_only = [{"prompt": item["prompt"]} for item in prompts_json if "prompt" in item]
+        processed_items = []
+        for item in prompts_json:
+            if ("prompt" in item and
+                "response" in item and
+                isinstance(item["response"], dict) and
+                "model_response" in item["response"]):
+                processed_items.append({
+                    "prompt": item["prompt"],
+                    "expected_response": item["response"]["model_response"]
+                })
 
-        if not prompts_only:
-            return jsonify({"error": "El archivo JSON no contiene prompts válidos"}), 400
+        if not processed_items:
+            return jsonify({"error": "El JSON no contiene prompts con response->model_response"}), 400
 
         headers = {
             "Content-Type": "application/json",
@@ -68,8 +69,8 @@ def run_dataset():
 
         results = []
 
-        # Crear el chat una sola vez con el primer prompt
-        first_prompt = prompts_only[0]["prompt"]
+        first_prompt = processed_items[0]["prompt"]
+        first_expected = processed_items[0]["expected_response"]
         user_msg_id = str(uuid.uuid4())
         initial_payload = json.dumps({
             "chat": {
@@ -89,21 +90,21 @@ def run_dataset():
         }).encode("utf-8")
 
         try:
-            req_new_chat = urllib.request.Request(f"{server_url}/api/v1/chats/new", data=initial_payload, headers=headers)
+            req_new_chat = urllib.request.Request(
+                f"{server_url}/api/v1/chats/new",
+                data=initial_payload,
+                headers=headers
+            )
             with urllib.request.urlopen(req_new_chat) as response:
                 if response.status == 200:
                     chat_data = json.load(response)
                     chat_id = chat_data.get("id")
                     if not chat_id:
-                        return jsonify({"error": "No se pudo obtener el ID del chat"}), 500
+                        return jsonify({"error": "No se pudo obtener chat_id"}), 500
 
-                    # Mantenemos un historial local de la conversación para enviarlo completo cada vez
-                    conversation = [
-                        {"role": "user", "content": first_prompt}
-                    ]
+                    conversation = [{"role": "user", "content": first_prompt}]
 
                     def call_ollama_api(messages):
-                        # Llamamos a /ollama/api/chat con todo el historial
                         assistant_msg_id = str(uuid.uuid4())
                         session_id = str(uuid.uuid4())
                         stream_payload = json.dumps({
@@ -122,7 +123,6 @@ def run_dataset():
                             headers=headers,
                             method="POST"
                         )
-
                         assistant_content = ""
                         with urllib.request.urlopen(stream_req) as stream_res:
                             for line in stream_res:
@@ -133,24 +133,28 @@ def run_dataset():
                                         assistant_content += chunk["message"]["content"]
                         return assistant_content
 
-                    # Obtener respuesta al primer prompt
-                    first_response = call_ollama_api(conversation)
-                    conversation.append({"role": "assistant", "content": first_response})
-                    results.append({"prompt": first_prompt, "response": first_response})
+                    first_generated = call_ollama_api(conversation)
+                    conversation.append({"role": "assistant", "content": first_generated})
+                    results.append({
+                        "prompt": first_prompt,
+                        "expected_response": first_expected,
+                        "response": first_generated,
+                        "generated_response": first_generated
+                    })
 
-                    # Procesamos el resto de prompts
-                    for p in prompts_only[1:]:
-                        # Añadimos el mensaje del usuario al chat (OpenWebUI)
-                        user_msg_id = str(uuid.uuid4())
+                    for item_p in processed_items[1:]:
+                        p_prompt = item_p["prompt"]
+                        p_expected = item_p["expected_response"]
+                        msg_id = str(uuid.uuid4())
                         update_payload = json.dumps({
                             "chat": {
                                 "models": [model],
                                 "messages": [{
-                                    "id": user_msg_id,
+                                    "id": msg_id,
                                     "parentId": None,
                                     "childrenIds": [],
                                     "role": "user",
-                                    "content": p["prompt"],
+                                    "content": p_prompt,
                                     "timestamp": int(time.time() * 1000)
                                 }]
                             }
@@ -162,21 +166,28 @@ def run_dataset():
                             headers=headers,
                             method="POST"
                         )
-
                         with urllib.request.urlopen(update_req) as update_res:
                             if update_res.status != 200:
-                                results.append({"prompt": p["prompt"], "response": f"Error al actualizar el chat: {update_res.read().decode('utf-8')}"})
+                                details_err = update_res.read().decode('utf-8')
+                                results.append({
+                                    "prompt": p_prompt,
+                                    "expected_response": p_expected,
+                                    "response": f"Error: {details_err}",
+                                    "generated_response": f"Error: {details_err}"
+                                })
                                 continue
 
-                        # Añadimos este nuevo mensaje de usuario a nuestro historial local
-                        conversation.append({"role": "user", "content": p["prompt"]})
+                        conversation.append({"role": "user", "content": p_prompt})
+                        gen_resp = call_ollama_api(conversation)
+                        conversation.append({"role": "assistant", "content": gen_resp})
 
-                        # Pedimos la respuesta del assistant con el historial completo
-                        assistant_response = call_ollama_api(conversation)
-                        conversation.append({"role": "assistant", "content": assistant_response})
-                        results.append({"prompt": p["prompt"], "response": assistant_response})
+                        results.append({
+                            "prompt": p_prompt,
+                            "expected_response": p_expected,
+                            "response": gen_resp,
+                            "generated_response": gen_resp
+                        })
 
-                    # Borramos el chat al final si se desea
                     delete_payload = json.dumps({"force": True}).encode("utf-8")
                     delete_req = urllib.request.Request(
                         f"{server_url}/api/v1/chats/{chat_id}",
@@ -185,14 +196,10 @@ def run_dataset():
                         method="DELETE"
                     )
                     try:
-                        with urllib.request.urlopen(delete_req) as delete_res:
-                            if delete_res.status == 200:
-                                print(f"Chat {chat_id} borrado con éxito")
-                            else:
-                                print(f"Error borrando el chat {chat_id}: {delete_res.read().decode('utf-8')}")
+                        with urllib.request.urlopen(delete_req):
+                            pass
                     except Exception as e_del:
                         print(f"No se pudo borrar el chat {chat_id}: {e_del}")
-
                 else:
                     details = response.read().decode("utf-8")
                     return jsonify({"error": f"Error al inicializar el chat: {details}"}), 500
@@ -203,9 +210,10 @@ def run_dataset():
         except urllib.error.URLError as e_url:
             return jsonify({"error": f"URLError: {str(e_url)}"}), 500
         except Exception as e_general:
-            return jsonify({"error": f"Excepción general: {str(e_general)}"}), 500
+            return jsonify({"error": f'Excepción general: {str(e_general)}'}), 500
+
+        session['evaluation_data'] = results
 
         return render_template('loadbank_results.html', results=results)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception as ex:
+        return jsonify({"error": str(ex)}), 500

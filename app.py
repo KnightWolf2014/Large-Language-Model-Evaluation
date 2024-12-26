@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from config.config import app
 from config.auth import auth
@@ -15,6 +16,7 @@ from views.evaluateResults import evaluateResults_blueprint
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'ClaveDeSeguridadTFG'
 
+CORS(app)
 
 app.register_blueprint(index_blueprint)
 app.register_blueprint(chat_blueprint)

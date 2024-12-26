@@ -37,7 +37,7 @@
     <h1>Load Model</h1>
 
     <form id="dataset-config-form" method="post" action="/runDataset" enctype="multipart/form-data">
-        <label for="server-url">URL del servidor:</label>
+        <label for="server-url">Server URL:</label>
         <input type="text" id="server-url" name="server-url" value="http://host.docker.internal:3000">
 
         <label for="username">Username:</label>
@@ -46,16 +46,16 @@
         <label for="password">Password:</label>
         <input type="text" id="password" name="password" value="TFGopenWebui2024_">
 
-        <label for="model">Modelo:</label>
+        <label for="model">Model:</label>
         <select id="model" name="model">
             <option value="llama3:latest">llama3:latest</option>
             <option value="model2">Otro modelo</option>
         </select>
 
-        <label for="dataset-json">Cargar archivo JSON:</label>
+        <label for="dataset-json">JSON archive:</label>
         <input type="file" id="dataset-json" name="dataset-json" accept=".json">
 
-        <button type="submit" id="run-dataset">Ejecutar Banco de Pruebas</button>
+        <button type="submit" id="run-dataset">Execute Dataset</button>
     </form>
 
     <a href="{{ url_for('index.index') }}">Back to Index</a>
