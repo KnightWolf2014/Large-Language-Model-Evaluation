@@ -7,6 +7,7 @@ import urllib.request
 
 loadModel_blueprint = Blueprint('loadModel', __name__)
 
+# Función para autentificarte en Open WebUI
 def get_auth_token(server_url, username, password):
     auth_url = f"{server_url}/api/v1/auths/signin"
     payload = json.dumps({"email": username, "password": password}).encode("utf-8")
@@ -27,10 +28,14 @@ def get_auth_token(server_url, username, password):
         print(f"URLError en autenticación: {str(e)}")
         return None
 
+
+# Función para ver la interfaz
 @loadModel_blueprint.route('/loadModel', methods=['GET'])
 def load_model():
     return render_template('loadModel.html')
 
+
+# Función para lanzar un dataset contra un modelo
 @loadModel_blueprint.route('/runDataset', methods=['POST'])
 def run_dataset():
     try:
@@ -47,7 +52,6 @@ def run_dataset():
         if not token:
             return jsonify({"error": "No se pudo autenticar al servidor"}), 401
 
-        # Nombre del dataset => file.filename
         dataset_filename = file.filename.rsplit('.', 1)[0] if '.' in file.filename else file.filename
 
         try:
@@ -223,12 +227,10 @@ def run_dataset():
         except Exception as e_general:
             return jsonify({"error": f'Excepción general: {str(e_general)}'}), 500
 
-        # Guardamos en sesión
         session['evaluation_data'] = results
-        session['dataset_name'] = dataset_filename  # sin .json
+        session['dataset_name'] = dataset_filename
         session['model_name'] = model
 
-        # Devolvemos un JSON con la URL a la cual redirigir para ver la plantilla
         redirect_url = url_for('loadModel.loadbank_results', page=1, per_page=5)
         return jsonify({"success": True, "redirect_url": redirect_url})
     
@@ -236,19 +238,16 @@ def run_dataset():
         return jsonify({"error": str(ex)}), 500
 
 
-
+# Función para mostrar los resultados de la carga al modelo
 @loadModel_blueprint.route('/loadbank_results', methods=['GET'])
 def loadbank_results():
-    # Cogemos de sesión
     results = session.get('evaluation_data', [])
     dataset_name = session.get('dataset_name', 'Unknown')
     model = session.get('model_name', 'Unknown')
 
     if not results:
-        # Si no hay nada, redirigimos a /loadModel o algo
         return "No data in session. Please run a dataset first.", 400
 
-    # Paginación
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
     valid_per_page = [5, 10, 25]
@@ -260,10 +259,8 @@ def loadbank_results():
     end_idx = start_idx + per_page
     page_results = results[start_idx:end_idx]
 
-    # total_pages
     total_pages = (total // per_page) + (1 if total % per_page != 0 else 0)
 
-    # Construir dicts para prev/next
     prev_args = {"page": page - 1, "per_page": per_page}
     next_args = {"page": page + 1, "per_page": per_page}
 

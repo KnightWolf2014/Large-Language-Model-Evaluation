@@ -45,7 +45,6 @@
                 <option value="{{ val }}" {% if val == per_page %}selected{% endif %}>{{ val }}</option>
                 {% endfor %}
             </select>
-            <!-- Volvemos siempre a la página 1 cuando cambie per_page -->
             <input type="hidden" name="page" value="1">
             <button type="submit">Apply</button>
         </form>
@@ -69,7 +68,6 @@
         </tbody>
     </table>
 
-    <!-- Repetimos controles al final, si quieres -->
     <div class="pagination-controls">
         {% if page > 1 %}
             <a class="btn" href="{{ url_for('loadModel.loadbank_results', **prev_args) }}">Previous</a>
