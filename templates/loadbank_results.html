@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Bank Results</title>
+    <title>Results of {{ dataset_name }} with {{ model }}</title>
     <style>
         table {
             width: 100%;
@@ -11,32 +11,46 @@
             margin: 20px 0;
             font-family: Arial, sans-serif;
         }
-
         th, td {
             padding: 10px;
             border: 1px solid #ccc;
             text-align: left;
             vertical-align: top;
         }
-
         th {
             background-color: #f2f2f2;
         }
-
         td {
             word-wrap: break-word;
             white-space: pre-wrap;
         }
-
         h1 {
             font-family: Arial, sans-serif;
+        }
+        .pagination-controls {
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>Dataset Results</h1>
+    <h1>Results of {{ dataset_name }} with {{ model }}</h1>
 
     <button onclick="window.location.href='/results'">Compare and Evaluate Results</button>
+
+    <div class="pagination-controls">
+        <form method="GET" action="{{ url_for('loadModel.loadbank_results') }}">
+            <label for="per_page">Per Page:</label>
+            <select id="per_page" name="per_page">
+                {% for val in valid_per_page %}
+                <option value="{{ val }}" {% if val == per_page %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+            <!-- Volvemos siempre a la página 1 cuando cambie per_page -->
+            <input type="hidden" name="page" value="1">
+            <button type="submit">Apply</button>
+        </form>
+
+    </div>
 
     <table>
         <thead>
@@ -54,6 +68,17 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Repetimos controles al final, si quieres -->
+    <div class="pagination-controls">
+        {% if page > 1 %}
+            <a class="btn" href="{{ url_for('loadModel.loadbank_results', **prev_args) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+            <a class="btn" href="{{ url_for('loadModel.loadbank_results', **next_args) }}">Next</a>
+        {% endif %}
+    </div>
 
     <a href="{{ url_for('index.index') }}">Back to Index</a>
 </body>

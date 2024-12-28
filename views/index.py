@@ -105,9 +105,11 @@ def index():
         msg_filter = " AND ".join(conditions_for_exists)
         where_clauses.append(f"EXISTS (SELECT 1 FROM json_each(c.chat, '$.history.messages') AS m WHERE {msg_filter})")
 
-    query = "SELECT c.id, c.title, c.created_at, c.chat FROM chat c ORDER BY c.created_at DESC"
+    query = "SELECT c.id, c.title, c.created_at, c.chat FROM chat c"
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
+
+    query += " ORDER BY c.created_at DESC"
 
     # Paginación
     count_query = f"SELECT COUNT(*) as total FROM ({query}) as sub"

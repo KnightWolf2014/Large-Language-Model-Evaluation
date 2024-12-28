@@ -11,7 +11,7 @@
         }
 
         form {
-            max-width: 400px;
+            max-width: 500px;
             margin: 0 auto;
         }
 
@@ -30,13 +30,19 @@
         button {
             cursor: pointer;
         }
+
+        .disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-
     <h1>Load Model</h1>
 
-    <form id="dataset-config-form" method="post" action="/runDataset" enctype="multipart/form-data">
+    <!-- NO 'action="/runDataset"' para no hacer submit tradicional. Haremos fetch. -->
+    <form id="dataset-config-form" enctype="multipart/form-data">
+        <!-- 1) Datos de OpenWebUI -->
         <label for="server-url">Server URL:</label>
         <input type="text" id="server-url" name="server-url" value="http://host.docker.internal:3000">
 
@@ -44,21 +50,187 @@
         <input type="text" id="username" name="username" value="joel.corredor@estudiantat.upc.edu">
 
         <label for="password">Password:</label>
-        <input type="text" id="password" name="password" value="TFGopenWebui2024_">
+        <!-- Password con asteriscos -->
+        <input type="password" id="password" name="password" value="TFGopenWebui2024_">
 
-        <label for="model">Model:</label>
-        <select id="model" name="model">
-            <option value="llama3:latest">llama3:latest</option>
-            <option value="model2">Otro modelo</option>
+        <!-- Archivo JSON con la lista de modelos (no lo enviamos al servidor) -->
+        <label for="models-json">Models JSON (local file):</label>
+        <input type="file" id="models-json" accept=".json">
+
+        <!-- Botón para leer models.json local y llenar <select> -->
+        <button type="button" id="load-models-button">Load Models</button>
+
+        <!-- Select de modelos, inicialmente deshabilitado -->
+        <label for="model">Select Model:</label>
+        <select id="model" name="model" disabled>
+            <option value="">-- No models loaded --</option>
         </select>
 
-        <label for="dataset-json">JSON archive:</label>
-        <input type="file" id="dataset-json" name="dataset-json" accept=".json">
+        <!-- Dataset JSON con prompts/responses (ESTE sí se envía al servidor) -->
+        <label for="dataset-json">Dataset JSON:</label>
+        <input type="file" id="dataset-json" name="dataset-json" accept=".json" disabled>
 
-        <button type="submit" id="run-dataset">Execute Dataset</button>
+        <!-- Botón para ejecutar. Lo manejaremos con JS -->
+        <button type="button" id="run-dataset" class="disabled" disabled>Execute Dataset</button>
     </form>
 
     <a href="{{ url_for('index.index') }}">Back to Index</a>
 
+    <script>
+        const loadModelsBtn = document.getElementById('load-models-button');
+        const modelsFileInput = document.getElementById('models-json');
+        const modelSelect = document.getElementById('model');
+        const datasetFileInput = document.getElementById('dataset-json');
+        const runDatasetBtn = document.getElementById('run-dataset');
+    
+        const serverUrlInput = document.getElementById('server-url');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+    
+        loadModelsBtn.addEventListener('click', () => {
+            if (!modelsFileInput.files || modelsFileInput.files.length === 0) {
+                alert("Please select a JSON file with your models first.");
+                return;
+            }
+            const file = modelsFileInput.files[0];
+            const reader = new FileReader();
+    
+            reader.onload = function(event) {
+                try {
+                    const text = event.target.result;
+                    const modelsArray = JSON.parse(text);
+    
+                    // 1) Verificamos que sea un array con elementos
+                    if (!Array.isArray(modelsArray) || modelsArray.length === 0) {
+                        alert("The Models JSON must be a non-empty array.");
+                        resetModelsInput();
+                        return;
+                    }
+    
+                    // 2) Verificamos que todos tengan id y name
+                    const invalidModel = modelsArray.find(m => !m.id || !m.name);
+                    if (invalidModel) {
+                        alert("One of the models in your JSON has no 'id' or 'name'.");
+                        resetModelsInput();
+                        return;
+                    }
+    
+                    // 3) Si todo está correcto, rellenamos el <select>
+                    modelSelect.innerHTML = '';
+                    const placeholderOption = document.createElement('option');
+                    placeholderOption.value = '';
+                    placeholderOption.textContent = '-- Select a Model --';
+                    modelSelect.appendChild(placeholderOption);
+    
+                    modelsArray.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.textContent = m.name;
+                        modelSelect.appendChild(opt);
+                    });
+    
+                    // Habilitar
+                    modelSelect.disabled = false;
+                    datasetFileInput.disabled = false;
+                    runDatasetBtn.disabled = false;
+                    runDatasetBtn.classList.remove('disabled');
+    
+                } catch (err) {
+                    alert("Error parsing the Models JSON: " + err);
+                    resetModelsInput();
+                }
+            };
+    
+            reader.readAsText(file);
+        });
+    
+        // Función para limpiar el input de models y resetear el <select>
+        function resetModelsInput() {
+            // Limpiamos el campo de archivo
+            modelsFileInput.value = "";
+    
+            // Dejamos el <select> con la opción por defecto
+            modelSelect.innerHTML = '<option value="">-- No models loaded --</option>';
+            modelSelect.disabled = true;
+    
+            // Deshabilitamos el dataset y el botón Execute
+            datasetFileInput.value = "";
+            datasetFileInput.disabled = true;
+            runDatasetBtn.disabled = true;
+            runDatasetBtn.classList.add('disabled');
+        }
+
+    // 2) Enviar form con fetch al hacer clic en "Execute Dataset"
+    runDatasetBtn.addEventListener('click', () => {
+        // Validaciones en el navegador
+        if (!serverUrlInput.value.trim()) {
+            alert("Please enter the Server URL.");
+            return;
+        }
+        if (!usernameInput.value.trim()) {
+            alert("Please enter the Username.");
+            return;
+        }
+        if (!passwordInput.value) {
+            alert("Please enter the Password.");
+            return;
+        }
+        if (!modelSelect.value) {
+            alert("Please select a Model from the dropdown.");
+            return;
+        }
+        if (!datasetFileInput.files || datasetFileInput.files.length === 0) {
+            alert("Please select the Dataset JSON file.");
+            return;
+        }
+
+        // Creamos un FormData con todos los campos
+        const formData = new FormData();
+        formData.append('server-url', serverUrlInput.value.trim());
+        formData.append('username', usernameInput.value.trim());
+        formData.append('password', passwordInput.value);
+        formData.append('model', modelSelect.value);
+        // Agregamos el archivo dataset
+        formData.append('dataset-json', datasetFileInput.files[0]);
+
+        // Llamada fetch a /runDataset
+        fetch('/runDataset', {
+            method: 'POST',
+            body: formData
+        })
+        .then(async (response) => {
+            // Leemos el body en texto (para luego parsear como JSON, si procede)
+            const text = await response.text();
+            if (!response.ok) {
+                // Error => intentamos parsear JSON
+                try {
+                    const data = JSON.parse(text);
+                    alert(data.error || "An unknown error occurred.");
+                } catch {
+                    alert("Error " + response.status + ": " + text);
+                }
+                return;
+            }
+            // Éxito => text debería ser un JSON con {redirect_url: ...}
+            try {
+                const data = JSON.parse(text);
+                if (data.redirect_url) {
+                    // Redirigimos
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert("No redirect_url found in response!");
+                }
+            } catch (err) {
+                // Si no es JSON, puede que sea un HTML con la plantilla de resultados
+                // -> Si prefieres directamente renderizar la plantilla en el server, podemos
+                //    'inyectar' la plantilla. Veamos la lógica que haremos en server.
+                document.write(text); // Reemplaza la página actual con la HTML devuelta
+            }
+        })
+        .catch(err => {
+            alert("Unexpected error: " + err);
+        });
+    });
+    </script>
 </body>
 </html>

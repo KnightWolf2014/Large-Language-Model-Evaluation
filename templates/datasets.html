@@ -96,6 +96,7 @@
 
     <script>
 
+        /* ---------------- CREATE ---------------- */
         document.getElementById('create-dataset-form').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -108,6 +109,7 @@
                 alert("Please enter title and name");
                 return;
             }
+
             const formData = new FormData();
             formData.append('title', title);
             formData.append('name', name);
@@ -118,8 +120,8 @@
                 body: formData
             })
             .then(async (response) => {
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
                     if (data.error) {
                         alert(data.error);
                     } else {
@@ -135,32 +137,8 @@
             });
         });
 
-        function validateDatasetForm() {
-            const title = document.getElementById('dataset-title').value.trim();
-            const name = document.getElementById('dataset-name').value.trim();
 
-            if (!title) {
-                alert("Please enter a title for the dataset.");
-                return false;
-            }
-
-            if (!name) {
-                alert("Please enter a name for the dataset.");
-                return false;
-            }
-
-            return true;
-        }
-
-        function showMessage(msg) {
-            const box = document.getElementById('messageBox');
-            box.textContent = msg;
-            box.style.display = 'block';
-            setTimeout(() => {
-                box.style.display = 'none';
-            }, 3000);
-        }
-
+        /* ---------------- EDIT ---------------- */
         function enableEditMode(id) {
             const row = document.querySelector(`tr[data-id="${id}"]`);
             if (!row) return;
@@ -169,12 +147,10 @@
             const nameCell = row.querySelector('.name-cell');
             const descriptionCell = row.querySelector('.description-cell');
 
-            // Guardamos valores originales
             titleCell.setAttribute('data-original', titleCell.textContent.trim());
             nameCell.setAttribute('data-original', nameCell.textContent.trim());
             descriptionCell.setAttribute('data-original', descriptionCell.textContent.trim());
 
-            // Convertimos a campos editables
             const originalTitle = titleCell.textContent.trim();
             const originalName = nameCell.textContent.trim();
             const originalDescription = descriptionCell.textContent.trim();
@@ -196,9 +172,14 @@
             const nameInput = row.querySelector('.name-cell input');
             const descriptionInput = row.querySelector('.description-cell input');
 
-            const newTitle = titleInput.value;
-            const newName = nameInput.value;
-            const newDescription = descriptionInput.value;
+            const newTitle = titleInput.value.trim();
+            const newName = nameInput.value.trim();
+            const newDescription = descriptionInput.value.trim();
+
+            if (!newTitle || !newName) {
+                alert("Please enter title and name");
+                return;
+            }
 
             const formData = new FormData();
             formData.append('title', newTitle);
@@ -209,15 +190,17 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => {
-                if(!response.ok) throw new Error('Error editing dataset');
-                return response.json().catch(() => ({}));
-            })
-            .then(data => {
-                if (data.error) {
-                    showMessage(data.error);
+            .then(async (response) => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert('An error occurred while editing the dataset.');
+                    }
                 } else {
                     showMessage("Dataset edited successfully.");
+
                     row.querySelector('.title-cell').innerHTML = `<a href="/datasets/${id}/responses">${newTitle}</a>`;
                     row.querySelector('.name-cell').textContent = newName;
                     row.querySelector('.description-cell').textContent = newDescription;
@@ -227,7 +210,10 @@
                     row.querySelector('.cancel-btn').style.display = 'none';
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred while editing.');
+            });
         }
 
         function cancelEdit(id) {
@@ -249,6 +235,15 @@
             row.querySelector('.edit-btn').style.display = 'inline-block';
             row.querySelector('.save-btn').style.display = 'none';
             row.querySelector('.cancel-btn').style.display = 'none';
+        }
+
+        function showMessage(msg) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 3000);
         }
     </script>
 </body>

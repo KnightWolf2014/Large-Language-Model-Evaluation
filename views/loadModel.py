@@ -2,7 +2,7 @@ import sys
 import json
 import time
 import uuid
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, render_template, request, session, url_for
 import urllib.request
 
 loadModel_blueprint = Blueprint('loadModel', __name__)
@@ -47,17 +47,25 @@ def run_dataset():
         if not token:
             return jsonify({"error": "No se pudo autenticar al servidor"}), 401
 
-        prompts_json = json.load(file)
+        # Nombre del dataset => file.filename
+        dataset_filename = file.filename.rsplit('.', 1)[0] if '.' in file.filename else file.filename
+
+        try:
+            prompts_json = json.load(file)
+        except Exception as e:
+            return jsonify({"error": f"Error parsing dataset JSON: {str(e)}"}), 400
+
         processed_items = []
         for item in prompts_json:
-            if ("prompt" in item and
-                "response" in item and
-                isinstance(item["response"], dict) and
-                "model_response" in item["response"]):
-                processed_items.append({
-                    "prompt": item["prompt"],
-                    "expected_response": item["response"]["model_response"]
-                })
+            if ("prompt" not in item or
+                "response" not in item or
+                not isinstance(item["response"], dict) or
+                "model_response" not in item["response"]):
+                return jsonify({"error": "El JSON no contiene la estructura requerida (prompt / response->model_response)."}), 400
+            processed_items.append({
+                "prompt": item["prompt"],
+                "expected_response": item["response"]["model_response"]
+            })
 
         if not processed_items:
             return jsonify({"error": "El JSON no contiene prompts con response->model_response"}), 400
@@ -133,6 +141,7 @@ def run_dataset():
                                         assistant_content += chunk["message"]["content"]
                         return assistant_content
 
+                    # Primer prompt
                     first_generated = call_ollama_api(conversation)
                     conversation.append({"role": "assistant", "content": first_generated})
                     results.append({
@@ -142,6 +151,7 @@ def run_dataset():
                         "generated_response": first_generated
                     })
 
+                    # Resto de prompts
                     for item_p in processed_items[1:]:
                         p_prompt = item_p["prompt"]
                         p_expected = item_p["expected_response"]
@@ -188,6 +198,7 @@ def run_dataset():
                             "generated_response": gen_resp
                         })
 
+                    # Al final, borramos el chat
                     delete_payload = json.dumps({"force": True}).encode("utf-8")
                     delete_req = urllib.request.Request(
                         f"{server_url}/api/v1/chats/{chat_id}",
@@ -212,8 +223,60 @@ def run_dataset():
         except Exception as e_general:
             return jsonify({"error": f'Excepción general: {str(e_general)}'}), 500
 
+        # Guardamos en sesión
         session['evaluation_data'] = results
+        session['dataset_name'] = dataset_filename  # sin .json
+        session['model_name'] = model
 
-        return render_template('loadbank_results.html', results=results)
+        # Devolvemos un JSON con la URL a la cual redirigir para ver la plantilla
+        redirect_url = url_for('loadModel.loadbank_results', page=1, per_page=5)
+        return jsonify({"success": True, "redirect_url": redirect_url})
+    
     except Exception as ex:
         return jsonify({"error": str(ex)}), 500
+
+
+
+@loadModel_blueprint.route('/loadbank_results', methods=['GET'])
+def loadbank_results():
+    # Cogemos de sesión
+    results = session.get('evaluation_data', [])
+    dataset_name = session.get('dataset_name', 'Unknown')
+    model = session.get('model_name', 'Unknown')
+
+    if not results:
+        # Si no hay nada, redirigimos a /loadModel o algo
+        return "No data in session. Please run a dataset first.", 400
+
+    # Paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    valid_per_page = [5, 10, 25]
+    if per_page not in valid_per_page:
+        per_page = 10
+
+    total = len(results)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_results = results[start_idx:end_idx]
+
+    # total_pages
+    total_pages = (total // per_page) + (1 if total % per_page != 0 else 0)
+
+    # Construir dicts para prev/next
+    prev_args = {"page": page - 1, "per_page": per_page}
+    next_args = {"page": page + 1, "per_page": per_page}
+
+    return render_template(
+        'loadbank_results.html',
+        results=page_results,
+        dataset_name=dataset_name,
+        model=model,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        valid_per_page=valid_per_page,
+        prev_args=prev_args,
+        next_args=next_args
+    )
