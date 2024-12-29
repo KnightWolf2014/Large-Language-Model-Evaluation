@@ -1,0 +1,581 @@
+{
+    "name": "LLM Evaluation API",
+    "version": "1.0.0",
+    "description": "API para la evaluación y filtrado de chats en OpenWebUI y gestión de datasets. Trabajo de Final de Grado de Joel Corredor Casares en la UPC-FIB",
+    "docker": {
+      "dockerfile": {
+        "description": "Archivo DockerFile para generar la imagen del servicio llmevaluation-web.",
+        "content": [
+          "# Use an official Python runtime as a parent image",
+          "FROM python:3.9-slim",
+          "",
+          "# Set the working directory to /app",
+          "WORKDIR /app",
+          "",
+          "# Copy the current directory contents into the container at /app",
+          "COPY . /app",
+          "",
+          "# Upgrade pip and install any needed packages specified in requirements.txt",
+          "RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt",
+          "",
+          "# Make port 5000 available to the world outside this container",
+          "EXPOSE 5000",
+          "",
+          "# Define environment variables",
+          "ENV FLASK_ENV=production",
+          "ENV FLASK_APP=app.py",
+          "",
+          "# Run app.py when the container launches",
+          "CMD [\"flask\", \"run\", \"--host=0.0.0.0\"]"
+        ]
+      },
+      "docker_compose": {
+        "description": "Archivo docker-compose.yml para levantar los servicios llmevaluation-web y open-webui. Define el volumen compartido shared-data.",
+        "content": [
+          "version: '3.8'",
+          "services:",
+          "  llmevaluation-web:",
+          "    build: .",
+          "    ports:",
+          "      - \"4444:5000\"",
+          "    environment:",
+          "      - FLASK_ENV=development",
+          "      - DATABASE_PATH=/app/backend/data/webui.db",
+          "    volumes:",
+          "      - shared-data:/app/backend/data",
+          "    restart: always",
+          "    command: bash -c \"flask run --host=0.0.0.0\"",
+          "",
+          "  open-webui:",
+          "    image: ghcr.io/open-webui/open-webui:main",
+          "    ports:",
+          "      - \"3000:8080\"",
+          "    volumes:",
+          "      - shared-data:/app/backend/data",
+          "    restart: always",
+          "",
+          "volumes:",
+          "  shared-data:"
+        ]
+      }
+    },
+    "configuration": {
+      "app.py": {
+        "description": "Punto de entrada Flask donde se registran los blueprints y se inicializan las tablas de datasets.",
+        "routes_registered": [
+          "/ (index_blueprint)",
+          "/chat (chat_blueprint)",
+          "/dataset (dataset_blueprint)",
+          "/loadModel (loadModel_blueprint)",
+          "/datasets (datasets_blueprint)",
+          "/results (evaluateResults_blueprint)"
+        ]
+      },
+      "config": {
+        "auth.py": {
+          "description": "Manejo de autenticación básica con usuarios en memoria (USERS)."
+        },
+        "config.py": {
+          "description": "Variables de entorno, configuración de logging y autenticación. Crea la instancia de Flask si se quiere (aunque en este caso se hace en app.py).",
+          "env_variables": [
+            "ADMIN_USERNAME (por defecto llmentor)",
+            "ADMIN_PASSWORD (por defecto llmprimer)",
+            "DATABASE_OPENWEBUI_PATH (por defecto /app/backend/data/webui.db)",
+            "DATABASE_PROJECT_PATH (por defecto /app/data/webui.db)"
+          ],
+          "auth": "Exporta una instancia de HTTPBasicAuth, usada en auth.py"
+        },
+        "database.py": {
+          "description": "Lógica para conectarse a las dos bases de datos: OpenWebUI y la del proyecto.",
+          "functions": [
+            {
+              "name": "get_openwebui_db_connection()",
+              "description": "Abre conexión a la BBDD OpenWebUI en la ruta DATABASE_OPENWEBUI_PATH."
+            },
+            {
+              "name": "get_project_db_connection()",
+              "description": "Abre conexión a la BBDD del proyecto en la ruta DATABASE_PROJECT_PATH."
+            }
+          ]
+        }
+      }
+    },
+    "endpoints": {
+      "/": {
+        "GET": {
+          "description": "Página principal que muestra los chats filtrables y paginados.",
+          "query_parameters": [
+            {
+              "name": "start_date",
+              "type": "string (YYYY-MM-DD)",
+              "description": "Fecha de inicio para el filtrado."
+            },
+            {
+              "name": "end_date",
+              "type": "string (YYYY-MM-DD)",
+              "description": "Fecha de fin para el filtrado."
+            },
+            {
+              "name": "start_time",
+              "type": "string (HH:MM)",
+              "description": "Hora de inicio para el filtrado."
+            },
+            {
+              "name": "end_time",
+              "type": "string (HH:MM)",
+              "description": "Hora de fin para el filtrado."
+            },
+            {
+              "name": "model_name",
+              "type": "string",
+              "description": "Filtra los chats por nombre de modelo (ej. 'llama3:latest')."
+            },
+            {
+              "name": "rating_filter",
+              "type": "string (positive|negative|none)",
+              "description": "Filtra los chats por rating en la respuesta del assistant."
+            },
+            {
+              "name": "comment_filter",
+              "type": "string (with|without)",
+              "description": "Filtra los chats por presencia/ausencia de comentarios en la respuesta del assistant."
+            },
+            {
+              "name": "page",
+              "type": "int",
+              "description": "Número de página para la paginación (por defecto 1)."
+            },
+            {
+              "name": "per_page",
+              "type": "int (5|10|25)",
+              "description": "Cantidad de registros por página (por defecto 10)."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Devuelve la plantilla 'index.html' con la lista de chats filtrados y paginados.",
+              "template_variables": [
+                "chats: Lista procesada de chats",
+                "models: Lista de modelos únicos devuelta por get_unique_models()",
+                "page, per_page, total, total_pages: Parámetros de paginación",
+                "valid_per_page_values: [5,10,25]",
+                "prev_args, next_args: Diccionarios para construir links de paginación"
+              ]
+            }
+          }
+        }
+      },
+      "/chat/{id}": {
+        "GET": {
+          "description": "Muestra el chat completo con sus prompts, respuestas, rating, etc.",
+          "path_parameters": [
+            {
+              "name": "id",
+              "type": "int",
+              "description": "El ID del chat en la base de datos de OpenWebUI."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Devuelve la plantilla 'chat.html' con la lista de pares (prompt-response). Incluye timestamps y anotaciones (rating, comment)."
+            },
+            "302/redirect": {
+              "description": "En caso de error de BBDD, redirecciona al '/' (index)."
+            }
+          }
+        }
+      },
+      "/dataset/{dataset_id}/responses": {
+        "GET": {
+          "description": "Muestra las entradas de un dataset específico, con paginación.",
+          "path_parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "El ID del dataset en la base de datos del proyecto."
+            }
+          ],
+          "query_parameters": [
+            {
+              "name": "page",
+              "type": "int",
+              "default": 1,
+              "description": "Página actual para la paginación."
+            },
+            {
+              "name": "per_page",
+              "type": "int (5|10|25)",
+              "default": 10,
+              "description": "Cantidad de registros por página."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Devuelve la plantilla 'dataset.html' con las entradas (dataset_responses)."
+            },
+            "404": {
+              "description": "Si no se encuentra el dataset con ese ID."
+            }
+          }
+        }
+      },
+      "/dataset/{dataset_id}/download": {
+        "GET": {
+          "description": "Descarga las respuestas de un dataset en un JSON con prompt y model_response.",
+          "path_parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "ID del dataset que se desea descargar."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Devuelve un archivo JSON en formato [ { \"prompt\": ..., \"response\": { \"model_response\": ..., \"comment\": ... } } ]."
+            },
+            "404": {
+              "description": "Si el dataset no existe."
+            }
+          }
+        }
+      },
+      "/dataset/{dataset_id}/responses/{response_id}/update": {
+        "POST": {
+          "description": "Actualiza una entrada (prompt/response/comment/rating) en dataset_responses.",
+          "path_parameters": [
+            { "name": "dataset_id", "type": "int" },
+            { "name": "response_id", "type": "int" }
+          ],
+          "form_body": [
+            { "name": "prompt", "type": "string" },
+            { "name": "response", "type": "string" },
+            { "name": "comment", "type": "string" },
+            {
+              "name": "rating",
+              "type": "string",
+              "description": "Puede ser '1' (positivo), '-1' (negativo) o cualquier otro valor interpretado como null."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "JSON {\"message\": \"Updated successfully\"}."
+            }
+          }
+        }
+      },
+      "/dataset/{dataset_id}/responses/{response_id}/delete": {
+        "POST": {
+          "description": "Borra una entrada en dataset_responses.",
+          "path_parameters": [
+            { "name": "dataset_id", "type": "int" },
+            { "name": "response_id", "type": "int" }
+          ],
+          "responses": {
+            "200": {
+              "description": "JSON {\"message\": \"Deleted successfully\"}."
+            }
+          }
+        }
+      },
+      "/dataset/{dataset_id}/responses/{response_id}/duplicate": {
+        "POST": {
+          "description": "Duplica una entrada en dataset_responses.",
+          "path_parameters": [
+            { "name": "dataset_id", "type": "int" },
+            { "name": "response_id", "type": "int" }
+          ],
+          "responses": {
+            "200": {
+              "description": "JSON { \"message\": \"Duplicated successfully\", \"entry\": {...} } con la nueva entrada creada."
+            },
+            "404": {
+              "description": "Si la entrada no existe."
+            }
+          }
+        }
+      },
+      "/dataset/save_selected": {
+        "POST": {
+          "description": "Guarda en uno o más datasets las parejas seleccionadas de un chat.",
+          "form_body": [
+            {
+              "name": "selected",
+              "type": "list[str]",
+              "description": "Lista de índices seleccionados por el usuario para el guardado."
+            },
+            {
+              "name": "dataset_ids",
+              "type": "list[str]",
+              "description": "Lista de IDs de dataset a las que se insertarán las entradas."
+            },
+            {
+              "name": "pairs_count",
+              "type": "int",
+              "description": "Número total de pares prompt/response que se recibieron en el formulario."
+            },
+            {
+              "name": "prompt_{i}, response_{i}, comment_{i}, rating_{i}",
+              "description": "Para cada índice i, se definen estos 4 campos con la información de la pareja."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "JSON { \"message\": \"Selected responses saved successfully.\" }."
+            },
+            "400": {
+              "description": "Si no se reciben entradas seleccionadas o no se envían dataset_ids."
+            }
+          }
+        }
+      },
+      "/datasets": {
+        "GET": {
+          "description": "Muestra la lista de todos los datasets creados.",
+          "responses": {
+            "200": {
+              "description": "Devuelve la plantilla 'datasets.html' con la lista de datasets."
+            }
+          }
+        }
+      },
+      "/datasets/create": {
+        "POST": {
+          "description": "Crea un nuevo dataset con título y nombre únicos.",
+          "form_body": [
+            { "name": "title", "type": "string", "required": true },
+            { "name": "name", "type": "string", "required": true },
+            { "name": "description", "type": "string", "required": false }
+          ],
+          "responses": {
+            "302/redirect": {
+              "description": "Redirige a /datasets si la creación es exitosa."
+            },
+            "400": {
+              "description": "JSON { \"error\":\"Title and Name are required\" } o \"Dataset name must be unique\"."
+            }
+          }
+        }
+      },
+      "/datasets/{dataset_id}/edit": {
+        "POST": {
+          "description": "Edita un dataset existente, cambiando su título, nombre y/o descripción.",
+          "path_parameters": [
+            { "name": "dataset_id", "type": "int" }
+          ],
+          "form_body": [
+            { "name": "title", "type": "string", "required": true },
+            { "name": "name", "type": "string", "required": true },
+            { "name": "description", "type": "string", "required": false }
+          ],
+          "responses": {
+            "302/redirect": {
+              "description": "Redirige a /datasets si se edita con éxito."
+            },
+            "400": {
+              "description": "JSON { \"error\":\"Title and Name are required\" } o \"Dataset name must be unique\"."
+            }
+          }
+        }
+      },
+      "/datasets/{dataset_id}/delete": {
+        "POST": {
+          "description": "Elimina un dataset por su ID.",
+          "path_parameters": [
+            { "name": "dataset_id", "type": "int" }
+          ],
+          "responses": {
+            "302/redirect": {
+              "description": "Redirige a /datasets tras la eliminación."
+            }
+          }
+        }
+      },
+      "/datasets/json": {
+        "GET": {
+          "description": "Devuelve en formato JSON la lista de todos los datasets existentes (id, title, name, description). Útil para mostrarlos en un modal.",
+          "responses": {
+            "200": {
+              "description": "JSON con un array de objetos [{\"id\":..., \"title\":..., \"name\":..., \"description\":...}, ...]"
+            }
+          }
+        }
+      },
+      "/loadModel": {
+      "GET": {
+        "description": "Muestra la interfaz para cargar el JSON de modelos y el dataset que se va a ejecutar contra un modelo.",
+        "responses": {
+          "200": {
+            "description": "Renderiza la plantilla 'loadModel.html'."
+          }
+        }
+      }
+    },
+    "/runDataset": {
+      "POST": {
+        "description": "Ejecuta un dataset contra un modelo de OpenWebUI, realizando las llamadas al endpoint /api/v1/chats/ y /ollama/api/chat. Luego, almacena los resultados en sesión.",
+        "form_body": [
+          {
+            "name": "server-url",
+            "type": "string",
+            "description": "URL del servidor OpenWebUI (p. ej. http://localhost:3000)."
+          },
+          {
+            "name": "model",
+            "type": "string",
+            "description": "Nombre o ID del modelo a utilizar (p.ej. 'llama3:latest')."
+          },
+          {
+            "name": "username",
+            "type": "string",
+            "description": "Usuario registrado en OpenWebUI."
+          },
+          {
+            "name": "password",
+            "type": "string",
+            "description": "Contraseña para OpenWebUI."
+          },
+          {
+            "name": "dataset-json",
+            "type": "file (JSON)",
+            "description": "Archivo con prompts y responses->model_response. Se valida su estructura antes de ejecutar."
+          }
+        ],
+        "responses": {
+          "200/JSON": {
+            "description": "Devuelve JSON con {\"success\": True, \"redirect_url\": ...} si todo sale bien."
+          },
+          "400": {
+            "description": "Si faltan campos o el JSON está mal formado (\"El JSON no contiene prompts con response->model_response\")."
+          },
+          "401": {
+            "description": "No se pudo autenticar al servidor (token == None)."
+          },
+          "500": {
+            "description": "Error interno al crear/borrar el chat o hacer streaming."
+          }
+        }
+      }
+    },
+    "/loadbank_results": {
+      "GET": {
+        "description": "Muestra la tabla de resultados de la ejecución (almacenada en session['evaluation_data']) con paginación.",
+        "query_parameters": [
+          {
+            "name": "page",
+            "type": "int",
+            "default": 1,
+            "description": "Página para la paginación."
+          },
+          {
+            "name": "per_page",
+            "type": "int (5|10|25)",
+            "default": 10,
+            "description": "Cantidad de resultados a mostrar por página."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Renderiza 'loadbank_results.html' con la lista paginada de prompts/responses ejecutadas y el dataset_name/model guardados en sesión."
+          },
+          "400": {
+            "description": "Si session['evaluation_data'] no existe o está vacía (no se ha corrido un dataset)."
+          }
+        }
+      }
+    },
+    "/results": {
+      "GET": {
+        "description": "Calcula métricas de BLEU y ROUGE (rouge1, rouge2, rougel) para cada respuesta generada, promediando los resultados y mostrándolos con paginación.",
+        "query_parameters": [
+          {
+            "name": "page",
+            "type": "int",
+            "default": 1,
+            "description": "Página para la paginación (sobre session['evaluation_data'])."
+          },
+          {
+            "name": "per_page",
+            "type": "int (5|10|25)",
+            "default": 5,
+            "description": "Elementos por página en la visualización de métricas."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Renderiza 'evaluation_results.html' con las métricas (BLEU, ROUGE) de cada fila y los promedios globales."
+          },
+          "400": {
+            "description": "Si no hay datos en session['evaluation_data'] para evaluar."
+          }
+        }
+      }
+    }
+    },
+    "data_structures": {
+      "ChatObject": {
+        "description": "Ejemplo de la forma en que se devuelven los chats procesados.",
+        "fields": [
+          { "name": "id", "type": "int", "description": "ID único del chat en la BBDD." },
+          { "name": "title", "type": "string", "description": "Título del chat." },
+          { "name": "timestamp", "type": "string (YYYY-MM-DD HH:MM)", "description": "Fecha/hora en que se creó el chat." },
+          { "name": "models", "type": "string", "description": "Lista de modelos separados por coma (ej. 'llama3:latest, model2')." }
+        ]
+      },
+      "ChatMessage": {
+        "description": "Representa un mensaje en un chat, extraído de la base de datos de OpenWebUI.",
+        "fields": [
+          { "name": "message_id", "type": "string", "description": "ID interno del mensaje en JSON." },
+          { "name": "parent_id", "type": "string", "description": "Referencia al mensaje padre." },
+          { "name": "role", "type": "string (user|assistant)", "description": "Rol en la conversación." },
+          { "name": "content", "type": "string", "description": "Texto del mensaje." },
+          { "name": "timestamp", "type": "timestamp", "description": "Momento en que se creó el mensaje." },
+          { "name": "rating", "type": "int|null", "description": "Valor de anotación (+1 o -1)." },
+          { "name": "comment", "type": "string|null", "description": "Comentario opcional." }
+        ]
+      },
+      "DatasetResponse": {
+        "description": "Registro dentro de la tabla dataset_responses.",
+        "fields": [
+          { "name": "id", "type": "int" },
+          { "name": "prompt", "type": "string" },
+          { "name": "response", "type": "string" },
+          { "name": "comment", "type": "string" },
+          { "name": "rating", "type": "int (1|0|-1)", "description": "0 si no hay rating, 1 si positivo, -1 si negativo." }
+        ]
+      },
+      "Dataset": {
+        "description": "Información sobre un dataset en la tabla datasets.",
+        "fields": [
+          { "name": "id", "type": "int" },
+          { "name": "title", "type": "string" },
+          { "name": "name", "type": "string", "description": "Debe ser único en la BBDD." },
+          { "name": "description", "type": "string" }
+        ]
+      },
+      "DatasetItemForModel": {
+        "description": "Elemento en el JSON subido a /runDataset, representando un prompt y la respuesta esperada del modelo.",
+        "fields": [
+          { "name": "prompt", "type": "string", "description": "Texto que se envía como prompt al modelo." },
+          {
+            "name": "response",
+            "type": "object",
+            "description": "Debe contener 'model_response' (cadena con la respuesta esperada).",
+            "fields": [
+              { "name": "model_response", "type": "string" },
+              { "name": "comment", "type": "string (opcional)" }
+            ]
+          }
+        ]
+      },
+      "EvaluationData": {
+        "description": "Estructura que se guarda en session['evaluation_data'] tras correr /runDataset.",
+        "fields": [
+          { "name": "prompt", "type": "string" },
+          { "name": "expected_response", "type": "string" },
+          { "name": "response", "type": "string" },
+          { "name": "generated_response", "type": "string", "description": "Similar a 'response', a veces se usa para comparar con 'expected_response'." }
+        ]
+      }
+    }
+}
+  
