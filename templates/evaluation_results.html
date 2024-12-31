@@ -58,6 +58,7 @@
     <p>Average ROUGE-1: {{ avg_rouge1 }}</p>
     <p>Average ROUGE-2: {{ avg_rouge2 }}</p>
     <p>Average ROUGE-L: {{ avg_rougel }}</p>
+    <p>Average ROUGE-S: {{ avg_rougeS }}</p>
     
     
     <h2>Per-Prompt Results</h2>
@@ -93,7 +94,8 @@
                 <td>BLEU: {{ item.bleu }}
                     ROUGE-1: {{ item.rouge1 }}
                     ROUGE-2: {{ item.rouge2 }}
-                    ROUGE-L: {{ item.rougel }}</td>
+                    ROUGE-L: {{ item.rougel }}
+                    ROUGE-S: {{ item.rougeS }}</td>
             </tr>
             {% endfor %}
         </tbody>
