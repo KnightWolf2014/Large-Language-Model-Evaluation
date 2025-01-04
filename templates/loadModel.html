@@ -41,7 +41,6 @@
     <h1>Load Model</h1>
 
     <form id="dataset-config-form" enctype="multipart/form-data">
-        <!-- URL -->
         <label for="server-url">Server URL:</label>
         <input type="text" id="server-url" name="server-url" value="http://host.docker.internal:3000">
 
@@ -52,19 +51,16 @@
         <!-- Password con asteriscos -->
         <input type="password" id="password" name="password" value="TFGopenWebui2024_">
 
-        <!-- Archivo JSON con la lista de modelos (no lo enviamos al servidor) -->
         <label for="models-json">Models JSON:</label>
         <input type="file" id="models-json" accept=".json">
 
         <button type="button" id="load-models-button">Load Models</button>
 
-        <!-- Select de modelos, inicialmente deshabilitado -->
         <label for="model">Select Model:</label>
         <select id="model" name="model" disabled>
             <option value="">-- No models loaded --</option>
         </select>
 
-        <!-- Dataset JSON con prompts/responses (ESTE sí se envía al servidor) -->
         <label for="dataset-json">Dataset JSON:</label>
         <input type="file" id="dataset-json" name="dataset-json" accept=".json" disabled>
 
@@ -90,11 +86,9 @@
             return;
         }
 
-        // En vez de FileReader local, enviamos el file al servidor:
         const formData = new FormData();
         formData.append('models-json', modelsFileInput.files[0]);
 
-        // Llamamos a /loadModelsJson
         fetch('/loadModelsJson', {
             method: 'POST',
             body: formData
@@ -108,11 +102,6 @@
 
             alert("Models loaded in the server. Count: " + data.count);
 
-            // Opcionalmente, puedes parsearlos localmente también
-            // para rellenar tu <select>:
-            // NOTA: Como ya has hecho con FileReader, si quieres
-            // mantener la lógica de “desplegar en <select>” localmente,
-            // hazlo:
             const fileLocal = modelsFileInput.files[0];
             const reader = new FileReader();
             reader.onload = function(event) {
