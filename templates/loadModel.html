@@ -85,37 +85,47 @@
         const passwordInput = document.getElementById('password');
     
         loadModelsBtn.addEventListener('click', () => {
-            if (!modelsFileInput.files || modelsFileInput.files.length === 0) {
-                alert("Please select a JSON file with your models first.");
+        if (!modelsFileInput.files || modelsFileInput.files.length === 0) {
+            alert("Please select a JSON file with your models first.");
+            return;
+        }
+
+        // En vez de FileReader local, enviamos el file al servidor:
+        const formData = new FormData();
+        formData.append('models-json', modelsFileInput.files[0]);
+
+        // Llamamos a /loadModelsJson
+        fetch('/loadModelsJson', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error al cargar modelos: " + data.error);
                 return;
             }
-            const file = modelsFileInput.files[0];
+
+            alert("Models loaded in the server. Count: " + data.count);
+
+            // Opcionalmente, puedes parsearlos localmente también
+            // para rellenar tu <select>:
+            // NOTA: Como ya has hecho con FileReader, si quieres
+            // mantener la lógica de “desplegar en <select>” localmente,
+            // hazlo:
+            const fileLocal = modelsFileInput.files[0];
             const reader = new FileReader();
-    
             reader.onload = function(event) {
                 try {
                     const text = event.target.result;
                     const modelsArray = JSON.parse(text);
-    
-                    if (!Array.isArray(modelsArray) || modelsArray.length === 0) {
-                        alert("The Models JSON must be a non-empty array.");
-                        resetModelsInput();
-                        return;
-                    }
-    
-                    const invalidModel = modelsArray.find(m => !m.id || !m.name);
-                    if (invalidModel) {
-                        alert("One of the models in your JSON has no 'id' or 'name'.");
-                        resetModelsInput();
-                        return;
-                    }
-    
+
                     modelSelect.innerHTML = '';
                     const placeholderOption = document.createElement('option');
                     placeholderOption.value = '';
                     placeholderOption.textContent = '-- Select a Model --';
                     modelSelect.appendChild(placeholderOption);
-    
+
                     modelsArray.forEach(m => {
                         const opt = document.createElement('option');
                         opt.value = m.id;
@@ -127,15 +137,18 @@
                     datasetFileInput.disabled = false;
                     runDatasetBtn.disabled = false;
                     runDatasetBtn.classList.remove('disabled');
-    
+
                 } catch (err) {
-                    alert("Error parsing the Models JSON: " + err);
-                    resetModelsInput();
+                    alert("Error parsing the Models JSON locally: " + err);
                 }
             };
-    
-            reader.readAsText(file);
+            reader.readAsText(fileLocal);
+
+        })
+        .catch(err => {
+            alert("Unexpected error uploading models: " + err);
         });
+    });
 
         function resetModelsInput() {
 

@@ -6,6 +6,8 @@ from datetime import datetime
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
 
+from views.data_storage import results_storage
+
 evaluateResults_blueprint = Blueprint('evaluateResults', __name__)
 
 # Función para calcular BLEU
@@ -68,7 +70,18 @@ def calculate_rougeS(reference, candidate, max_skip=10):
 
 @evaluateResults_blueprint.route('/results')
 def evaluate_results():
-    evaluation_data = session.get('evaluation_data', [])
+    # Recuperamos job_id del query param o de la sesión
+    job_id = request.args.get('job_id') or session.get('job_id')
+    if not job_id:
+        return "No job_id found. Please run a dataset first.", 400
+
+    # Obtenemos los datos del almacén global
+    data = results_storage.get(job_id)
+    if not data:
+        return f"No data found for job_id={job_id}", 400
+
+    evaluation_data = data["results"]  # Lo que antes estaba en session['evaluation_data']
+
     if not evaluation_data:
         return "No evaluation data found", 400
 
@@ -76,6 +89,7 @@ def evaluate_results():
     if total == 0:
         return "No evaluation data found", 400
 
+    # Paginación
     per_page = request.args.get('per_page', 5, type=int)
     if per_page not in [5, 10, 25]:
         per_page = 5
@@ -94,11 +108,11 @@ def evaluate_results():
 
     line_metrics = []
 
+    # Calcular métricas para TODOS los items
     for item in evaluation_data:
         ref = item.get("expected_response", "")
         gen = item.get("generated_response", "")
         if not ref or not gen:
-
             line_metrics.append({
                 "bleu": 0.0,
                 "rouge1": 0.0,
@@ -107,7 +121,7 @@ def evaluate_results():
                 "rougeS": 0.0
             })
             continue
-        
+
         # BLEU
         bleu_score = round(calculate_bleu(ref, gen), 4)
 
@@ -135,6 +149,7 @@ def evaluate_results():
             "rougeS": rs
         })
 
+    # Promedios
     avg_bleu = sum(bleu_scores) / len(bleu_scores) if bleu_scores else 0.0
     avg_rouge1 = sum(rouge1_scores) / len(rouge1_scores) if rouge1_scores else 0.0
     avg_rouge2 = sum(rouge2_scores) / len(rouge2_scores) if rouge2_scores else 0.0
